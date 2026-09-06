@@ -42,6 +42,9 @@ jobs:
         # --publish never: electron-builder must NOT try to create the GitHub
         # Release itself (its GITHUB_TOKEN lacks release rights); the `release`
         # job below creates it via softprops/action-gh-release instead.
+        # shell: bash — the default pwsh on windows-latest can't parse the
+        # `code=$?` capture below.
+        shell: bash
         run: npm run ${{ matrix.script }} -- --publish never > build-output.log 2>&1; code=$?; tail -60 build-output.log; exit $code
 
       - name: Upload build log on failure
