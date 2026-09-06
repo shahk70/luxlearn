@@ -74,6 +74,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         updateBanner: $('updateBanner'),
         updateBannerText: $('updateBannerText'),
+        updateBannerUpdateBtn: $('updateBannerUpdateBtn'),
         updateBannerViewBtn: $('updateBannerViewBtn'),
         updateBannerDismissBtn: $('updateBannerDismissBtn'),
 
@@ -534,11 +535,29 @@ window.addEventListener('DOMContentLoaded', () => {
         applyThemeChoice('system');
     }
 
+    let pendingUpdate = null;
+    let updateDownloading = false;
+    let updateReadyVersion = null;
+
+    function setUpdateButton(state) {
+        const btn = elems.updateBannerUpdateBtn;
+        if (!btn) return;
+        btn.disabled = state.disabled;
+        setText(btn, t(state.key, state.params));
+    }
+
     function showUpdateBanner(update) {
         if (!update || !elems.updateBanner) return;
         if (dismissedUpdateVersion === update.version) return;
 
-        setText(elems.updateBannerText, t('update.availableDetail', { version: update.version }));
+        pendingUpdate = update;
+        if (updateReadyVersion === update.version) {
+            setText(elems.updateBannerText, t('update.readyDetail', { version: update.version }));
+            setUpdateButton({ disabled: false, key: 'update.restartNow' });
+        } else {
+            setText(elems.updateBannerText, t('update.availableDetail', { version: update.version }));
+            setUpdateButton({ disabled: false, key: 'update.installNow' });
+        }
         elems.updateBanner.hidden = false;
 
         elems.updateBannerViewBtn.onclick = () => window.api.openExternal?.(update.url);
@@ -546,6 +565,40 @@ window.addEventListener('DOMContentLoaded', () => {
             dismissedUpdateVersion = update.version;
             elems.updateBanner.hidden = true;
         };
+        if (elems.updateBannerUpdateBtn) {
+            elems.updateBannerUpdateBtn.onclick = async () => {
+                if (updateReadyVersion === update.version) {
+                    await window.api.installUpdate?.();
+                    return;
+                }
+                updateDownloading = true;
+                setUpdateButton({ disabled: true, key: 'update.downloading' });
+                const result = await window.api.downloadUpdate?.();
+                if (!result?.success) {
+                    updateDownloading = false;
+                    setUpdateButton({ disabled: false, key: 'update.installNow' });
+                    showToast(t('update.downloadFailed'));
+                }
+            };
+        }
+    }
+
+    function bindUpdateDownloadEvents() {
+        if (bindUpdateDownloadEvents.done) return;
+        bindUpdateDownloadEvents.done = true;
+        window.api.onUpdateDownloadProgress?.(({ percent }) => {
+            if (!updateDownloading || !pendingUpdate) return;
+            setText(elems.updateBannerText, t('update.downloadingPct', { version: pendingUpdate.version, pct: percent ?? 0 }));
+        });
+        window.api.onUpdateDownloaded?.(({ version }) => {
+            updateDownloading = false;
+            updateReadyVersion = version;
+            if (pendingUpdate && pendingUpdate.version.replace(/^v/, '') === String(version).replace(/^v/, '')) {
+                pendingUpdate.version = `v${String(version).replace(/^v/, '')}`;
+            }
+            setText(elems.updateBannerText, t('update.readyDetail', { version: `v${String(version).replace(/^v/, '')}` }));
+            setUpdateButton({ disabled: false, key: 'update.restartNow' });
+        });
     }
 
     let toastTimer = null;
@@ -1365,6 +1418,7 @@ window.addEventListener('DOMContentLoaded', () => {
         window.api.onWeatherUpdate?.(updateLocationUI);
         window.api.onDynamicStatusUpdate?.(updateStatusUI);
         window.api.onLogUpdate?.(updateLogsUI);
+        bindUpdateDownloadEvents();
         window.api.onUpdateAvailable?.(showUpdateBanner);
         window.api.onOsSupportUpdate?.(renderOsSupport);
         window.api.onSettingsUpdated?.(({ settings, learningConfig }) => {

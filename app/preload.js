@@ -6,7 +6,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 // their "--" placeholders. Buffer the latest payload per channel and replay
 // it on first subscription.
 const earlyBuffer = {};
-const bufferedChannels = ['weather-update', 'dynamic-status-update', 'settings-updated', 'log-update', 'update-available', 'os-support-update'];
+const bufferedChannels = ['weather-update', 'dynamic-status-update', 'settings-updated', 'log-update', 'update-available', 'update-download-progress', 'update-downloaded', 'os-support-update'];
 for (const channel of bufferedChannels) {
     ipcRenderer.on(channel, (_event, value) => {
         earlyBuffer[channel] = value;
@@ -44,6 +44,10 @@ contextBridge.exposeInMainWorld('api', {
      checkActivityWindow: () => ipcRenderer.invoke('activity:check-window'),
      getVersion: () => ipcRenderer.invoke('about:get-version'),
      checkUpdatesNow: () => ipcRenderer.invoke('about:check-updates'),
+     downloadUpdate: () => ipcRenderer.invoke('about:download-update'),
+     installUpdate: () => ipcRenderer.invoke('about:install-update'),
+     onUpdateDownloadProgress: (callback) => subscribe('update-download-progress', callback),
+     onUpdateDownloaded: (callback) => subscribe('update-downloaded', callback),
      exportData: () => ipcRenderer.invoke('export-data'),
      importData: () => ipcRenderer.invoke('import-data'),
      windowControl: (action) => ipcRenderer.invoke('window-control', action),

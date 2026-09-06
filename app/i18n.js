@@ -841,6 +841,66 @@ const I18N = {
     "ru": "Доступна версия {version}.",
     "zh": "版本 {version} 现已可用。"
   },
+  "update.installNow": {
+    "en": "Update now",
+    "de": "Jetzt aktualisieren",
+    "fa": "همین حالا به‌روزرسانی",
+    "tr": "Şimdi güncelle",
+    "es": "Actualizar ahora",
+    "fr": "Mettre à jour",
+    "ru": "Обновить сейчас",
+    "zh": "立即更新"
+  },
+  "update.downloading": {
+    "en": "Downloading…",
+    "de": "Wird heruntergeladen…",
+    "fa": "در حال دانلود…",
+    "tr": "İndiriliyor…",
+    "es": "Descargando…",
+    "fr": "Téléchargement…",
+    "ru": "Загрузка…",
+    "zh": "正在下载…"
+  },
+  "update.downloadingPct": {
+    "en": "Downloading {version} — {pct}%",
+    "de": "{version} wird geladen — {pct} %",
+    "fa": "دانلود {version} — {pct}٪",
+    "tr": "{version} indiriliyor — %{pct}",
+    "es": "Descargando {version} — {pct} %",
+    "fr": "Téléchargement de {version} — {pct} %",
+    "ru": "Загрузка {version} — {pct} %",
+    "zh": "正在下载 {version} — {pct}%"
+  },
+  "update.readyDetail": {
+    "en": "Version {version} downloaded — restart to install.",
+    "de": "Version {version} geladen — zum Installieren neu starten.",
+    "fa": "نسخه {version} دانلود شد — برای نصب دوباره اجرا کنید.",
+    "tr": "{version} indirildi — kurmak için yeniden başlatın.",
+    "es": "Versión {version} descargada — reinicia para instalar.",
+    "fr": "Version {version} téléchargée — redémarrez pour installer.",
+    "ru": "Версия {version} загружена — перезапустите для установки.",
+    "zh": "版本 {version} 已下载 — 重启以安装。"
+  },
+  "update.restartNow": {
+    "en": "Restart & install",
+    "de": "Neustart & installieren",
+    "fa": "اجرا دوباره و نصب",
+    "tr": "Yeniden başlat & kur",
+    "es": "Reiniciar e instalar",
+    "fr": "Redémarrer et installer",
+    "ru": "Перезапустить и установить",
+    "zh": "重启并安装"
+  },
+  "update.downloadFailed": {
+    "en": "Update download failed. Check your connection and try again.",
+    "de": "Download fehlgeschlagen. Verbindung prüfen und erneut versuchen.",
+    "fa": "دانلود به‌روزرسانی ناموفق بود. اتصال را بررسی کنید و دوباره تلاش کنید.",
+    "tr": "Güncelleme indirilemedi. Bağlantıyı kontrol edip tekrar deneyin.",
+    "es": "Falló la descarga. Comprueba tu conexión e inténtalo de nuevo.",
+    "fr": "Échec du téléchargement. Vérifiez la connexion et réessayez.",
+    "ru": "Не удалось скачать обновление. Проверьте соединение и повторите.",
+    "zh": "更新下载失败。请检查网络后重试。"
+  },
   "update.viewRelease": {
     "en": "View release",
     "de": "Release anzeigen",

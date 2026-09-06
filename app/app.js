@@ -18,6 +18,45 @@ const { getBrightnessBackendName, getActiveWindowSafe, getPowerStatus, listDispl
 const UPDATE_STATUS_INTERVAL_MS = 5000;
 const WEATHER_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
+// --- In-app updater (electron-updater: check + download + quit-and-install) ---
+// GUI flow only: no silent auto-install; the user confirms via the banner.
+// REPO_OWNER/REPO_NAME are declared near the update checker below; they are
+// used lazily inside event callbacks, so hoisting order is not an issue.
+let autoUpdater = null;
+try {
+    const { autoUpdater: au } = require('electron-updater');
+    autoUpdater = au;
+    autoUpdater.autoDownload = false;      // download only after user clicks "Update"
+    autoUpdater.autoInstallOnAppQuit = true; // install downloaded update on next quit
+    autoUpdater.logger = console;
+    autoUpdater.on('update-available', (info) => {
+        sendToMainWindow('update-available', {
+            version: info.version,
+            url: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/tag/v${info.version}`,
+            notes: typeof info.releaseNotes === 'string' ? info.releaseNotes : '',
+            source: 'electron-updater',
+        });
+    });
+    autoUpdater.on('update-not-available', () => {
+        sendToMainWindow('update-none', { checkedAt: Date.now() });
+    });
+    autoUpdater.on('error', (err) => {
+        console.warn('Auto-update error:', err && err.message);
+    });
+    autoUpdater.on('download-progress', (p) => {
+        sendToMainWindow('update-download-progress', {
+            percent: Math.round(p.percent || 0),
+            bytesPerSecond: p.bytesPerSecond || 0,
+        });
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+        state.updateDownloaded = true;
+        sendToMainWindow('update-downloaded', { version: info.version });
+    });
+} catch (err) {
+    console.warn('electron-updater unavailable, falling back to notify-only checks:', err.message);
+}
+
 let mainWindow;
 let tray = null;
 let brightnessManager = null;
@@ -527,6 +566,15 @@ async function checkForUpdates() {
 function startUpdateChecks(onUpdateAvailable) {
   const run = async () => {
     try {
+      // electron-updater emits its own update-available event (wired above);
+      // only fall back to the notify-only GitHub check when it is missing.
+      if (autoUpdater) {
+        await autoUpdater.checkForUpdates().catch((err) => {
+          console.warn('electron-updater tick failed:', err && err.message);
+          return checkForUpdates().then((u) => { if (u) onUpdateAvailable(u); });
+        });
+        return;
+      }
       const update = await checkForUpdates();
       if (update) onUpdateAvailable(update);
     } catch (err) {
@@ -617,6 +665,27 @@ ipcMain.handle('activity:check-window', async () => {
 ipcMain.handle('about:get-version', () => app.getVersion());
 ipcMain.handle('about:check-updates', async () => {
     try {
+        // Prefer electron-updater (checks + can download); fall back to the
+        // notify-only GitHub check if the updater module failed to load.
+        if (autoUpdater) {
+            try {
+                const result = await autoUpdater.checkForUpdates();
+                const info = result && result.updateInfo;
+                if (info && isNewer(info.version, app.getVersion())) {
+                    const update = {
+                        version: `v${info.version}`,
+                        url: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/tag/v${info.version}`,
+                        notes: (Array.isArray(info.releaseNotes) ? info.releaseNotes.map((n) => n.note).join('\n') : info.releaseNotes) || '',
+                    };
+                    state.availableUpdate = update;
+                    sendToMainWindow('update-available', update);
+                    return { available: true, version: update.version, url: update.url };
+                }
+                return { available: false };
+            } catch (updaterErr) {
+                console.warn('electron-updater check failed, trying notify-only check:', updaterErr.message);
+            }
+        }
         const update = await checkForUpdates();
         if (update) {
             state.availableUpdate = update;
@@ -627,6 +696,24 @@ ipcMain.handle('about:check-updates', async () => {
     } catch (err) {
         return { available: false, error: err.message };
     }
+});
+
+// Download the pending update in-app, then offer quit-and-install.
+// No silent installs: the renderer only calls this after the user clicks.
+ipcMain.handle('about:download-update', async () => {
+    if (!autoUpdater) return { success: false, error: 'updater-unavailable' };
+    try {
+        await autoUpdater.downloadUpdate();
+        return { success: true };
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
+});
+ipcMain.handle('about:install-update', () => {
+    if (!autoUpdater || !state.updateDownloaded) return { success: false, error: 'nothing-downloaded' };
+    app.isQuitting = true;
+    autoUpdater.quitAndInstall(false, true);
+    return { success: true };
 });
 
 // --- Export / Import full user data ---

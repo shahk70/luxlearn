@@ -1,11 +1,60 @@
 # Changelog
 
-## [1.2.0] - 2026-09-02
+## [1.2.4] - 2026-09-06
 
 ### Added
-- **Multilingual interface (i18n)**: English, Deutsch, فارسی (RTL), Türkçe.
-  Select and save the language on the Settings page; all major UI strings
-  translate immediately, including RTL layout direction for Farsi.
+- **In-app updates**: a new version is detected automatically once a day and
+  on every manual check — no GitHub visit needed. The banner gains an
+  "Update now" button that downloads the new installer inside the app with a
+  live progress percentage, then offers "Restart & install". Users can still
+  open the GitHub release page from the banner. Falls back to the notify-only
+  link if the updater can't reach the release feed.
+- **Bundled weather keys**: six public WeatherAPI.com keys ship with the app,
+  so sunrise/sunset and cloud-cover work out of the box with no `.env` setup.
+  Your own keys (optional, in local `.env`) always take priority and are
+  never shared.
+
+### Fixed
+- Learning phase lifecycle: resetting settings now restarts the learning
+  phase from day 0; importing a backup restores its learning-phase state;
+  changing the learning duration re-bases the phase timer so the profile
+  counter matches the new expectation.
+- Status page fields no longer stick at "--": the Auto Brightness row id was
+  fixed, and push events that arrive before the UI finishes loading are now
+  buffered and replayed instead of dropped.
+- Weather API key selection: keys are never reused within one retry cycle
+  (up to 3 distinct keys tried per request).
+
+## [1.2.3] - 2026-09-06
+
+### Added
+- **Public WeatherAPI keys bundled** (intermediate release superseded by
+  1.2.4's in-app updater work): fresh installs get live weather data with
+  zero configuration.
+
+## [1.2.2] - 2026-09-06
+
+### Added
+- **Device support expansion**: chained camera backends (CommandCam → ffmpeg
+  DirectShow on Windows; imagesnap → ffmpeg on macOS; fswebcam → ffmpeg on
+  Linux) with automatic fallback and user-selectable cameras and displays in
+  Settings.
+- **DDC/CI brightness control** for external monitors on Windows; macOS gains
+  `ddcctl` support for Intel Macs with external displays; Linux xrandr now
+  adjusts every connected output instead of only the first.
+- **Broader ambient-light sensing**: more Linux IIO channel variants
+  (`in_illuminance0_*`, `in_illuminance_mean*`), re-probing instead of
+  permanent caching, webcam-exposure fallback when no light sensor exists.
+- **Rename to LuxLearn**: new product identity, icons, and GitHub home
+  (shahk70/luxlearn); GitHub Releases now build Windows/macOS/Linux
+  installers automatically on every `v*` tag.
+
+### Fixed
+- Status warnings for external-display DDC/CI and Wayland xrandr
+  limitations, in all 8 interface languages.
+
+## [1.2.0] - 2026-09-02 (history continues — entries below unchanged)
+
 - **Activities page**: automatic pausing of brightness adjustments while an
   activity is running. Built-in Gaming (fullscreen + known game
   processes/titles) and Watching Video (known player apps) triggers, plus
