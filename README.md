@@ -81,6 +81,26 @@ on your own habits instead of a generic estimate.
 
 ## Getting started
 
+**Just want to use LuxLearn?** Download the installer for your OS from the
+[Releases page](https://github.com/shahk70/luxlearn/releases) and run it —
+no Node.js, no cloning, no terminal required:
+
+- **Windows**: `LuxLearn-<version>-Setup.exe` — a standard installer
+  (desktop + Start Menu shortcuts, optional start-with-Windows).
+- **macOS**: `LuxLearn-<version>.dmg` — open it and drag LuxLearn to
+  Applications. The app is unsigned, so on first launch right-click →
+  **Open** (or allow it under System Settings → Privacy & Security).
+- **Linux**: `LuxLearn-<version>.AppImage` — `chmod +x` it and run, or
+  install the `.deb` with your package manager.
+
+After installing, grant permissions if prompted: on macOS the app asks for
+Screen Recording (screen sampling) and Camera access; on Windows/Linux
+nothing extra is needed. Webcam-based sensing is optional — the app works
+without a camera and tells you on the Status page if a capture tool is
+missing.
+
+### Running from source (developers)
+
 ```bash
 git clone https://github.com/shahk70/luxlearn.git
 cd luxlearn
@@ -106,39 +126,54 @@ keys.**
 ### Building a distributable
 
 ```bash
-npm run package:win     # -> dist/LuxLearn-win32-x64
-npm run package:mac     # -> dist/LuxLearn-darwin-universal
-npm run package:linux   # -> dist/LuxLearn-linux-x64
+npm run dist:win     # -> LuxLearn-<version>-Setup.exe (NSIS installer)
+npm run dist:mac     # -> LuxLearn-<version>.dmg
+npm run dist:linux   # -> LuxLearn-<version>.AppImage + .deb
 ```
 
-These use `electron-packager`. macOS packaging additionally needs
+These use `electron-builder`. macOS packaging additionally needs
 `app/images/icon.icns` (see [Assets](#assets)).
+
+### Downloading a published release (no build needed)
+
+Every `v*` tag pushed to this repo triggers `.github/workflows/release.yml`,
+which builds all three OS packages on GitHub's servers and attaches them to
+a GitHub Release. To ship a new version — including your very first
+installer:
+
+```bash
+npm version 1.2.3        # bumps package.json + package-lock.json, creates the tag
+git push origin main --tags
+```
+
+Then wait ~10–20 minutes on the [Actions tab](https://github.com/shahk70/luxlearn/actions),
+and the files appear under [Releases](https://github.com/shahk70/luxlearn/releases),
+ready to download. Nothing is built on your machine — your PC stays clean.
 
 ## Updates
 
 The update checker (inlined in `app/app.js`) polls the GitHub Releases API
 once a day for a newer tag than the running app's `package.json` version,
 and shows a dismissible banner in-app with a link to the release — it does
-**not** auto-download or auto-install anything. Before publishing, set
-`REPO_OWNER` / `REPO_NAME` at the top of `app/app.js` to your actual GitHub
-username/repo.
+**not** auto-download or auto-install anything. It is pre-configured for
+`shahk70/luxlearn` (`REPO_OWNER` / `REPO_NAME` at the top of `app/app.js`).
 
 If you'd rather have real auto-install updates, swap this module for
 [`electron-updater`](https://www.electron.build/auto-update) +
 `electron-builder`; that requires setting up code signing and a configured
 publish target, which is why it isn't the default here.
 
-To make the update checker actually have something to find, tag your
-releases (`git tag v1.0.1 && git push --tags`) — see
-`.github/workflows/release.yml`, which builds and publishes a GitHub Release
-automatically whenever you push a `v*` tag.
+To make the update checker actually have something to find, push a `v*` tag
+as shown in [Downloading a published release](#downloading-a-published-release-no-build-needed)
+— `.github/workflows/release.yml` then builds and publishes the GitHub
+Release automatically.
 
 ## Assets
 
 All UI assets (`app/images/icon.ico`, `icon.png`, `donate.jpg`) are included.
 For macOS packaging you additionally need `app/images/icon.icns` — generate
 one from a 1024px PNG once with e.g. `npx icon-gen` before running
-`npm run package:mac`.
+`npm run dist:mac`.
 
 ## Project structure
 
