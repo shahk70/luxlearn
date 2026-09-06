@@ -3,7 +3,10 @@
   "version": "1.2.2",
   "description": "LuxLearn — your screen learns the light around you. A cross-platform Electron app that blends ambient light, webcam, screen content and time of day into brightness that feels natural.",
   "license": "UNLICENSED",
-  "author": "shah",
+  "author": {
+    "name": "shah",
+    "email": "shahk70@users.noreply.github.com"
+  },
   "homepage": "https://github.com/shahk70/luxlearn#readme",
   "repository": {
     "type": "git",
@@ -117,7 +120,8 @@
         "deb"
       ],
       "icon": "app/images/icon.png",
-      "category": "Utility"
+      "category": "Utility",
+      "description": "Your screen learns the light around you."
     },
     "publish": {
       "provider": "github",
