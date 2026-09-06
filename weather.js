@@ -14,18 +14,25 @@ const CONFIG = {
     IP_GEOLOCATION_TIMEOUT_MS: 5000,
 };
 
+// Public keys bundled with the app so a fresh install has working
+// sunrise/sunset + cloud data with zero configuration. Any key set in the
+// user's local .env (WEATHERAPI_PRIVATE_KEYS / WEATHERAPI_KEYS / legacy
+// WEATHERAPI_KEY) takes priority over these.
+const BUNDLED_PUBLIC_KEYS = '6St40m8Siqww0dlFI1g7FqVKGP8A8lCi,cuNEvvF9R6nrkgfxtyb6i4ESJn8Ni8b6,cnI9GWvp7hOzR7qPI9Z3uQpREHRKn6jb,5KrZFlv6DbWosTDfrcSv1F8s5bLZdNf0,NcoH9JHLho0vPsqap57C2aAdO2HtcaVA,gI4KPjPSN04O0kiuk4O7gNkysjWfF2fI'
+    .split(',').map((k) => k.trim()).filter(Boolean);
+
 function getWeatherApiKeys() {
-    // WEATHERAPI_PRIVATE_KEYS: your own keys, tried first in order — they are
-    // never rotated randomly, so they only serve this install and public
-    // releases don't burn their quota. WEATHERAPI_KEYS: public/shared keys
-    // used as fallback (and as the only source when no private key is set).
+    // 1. User's own private keys (local .env only) — tried first, in order,
+    //    never rotated randomly so releases don't burn their quota.
     const privateKeys = (process.env.WEATHERAPI_PRIVATE_KEYS || '')
         .split(',').map((k) => k.trim()).filter(Boolean);
-    const publicKeys = (process.env.WEATHERAPI_KEYS || '')
+    // 2. User's extra keys via env — joined with the bundled public pool.
+    const envPublicKeys = (process.env.WEATHERAPI_KEYS || '')
         .split(',').map((k) => k.trim()).filter(Boolean);
+    const publicKeys = [...new Set([...envPublicKeys, ...BUNDLED_PUBLIC_KEYS])];
     if (privateKeys.length > 0) return [...privateKeys, ...publicKeys];
     const single = (process.env.WEATHERAPI_KEY || '').trim();
-    if (single) return [single];
+    if (single) return [single, ...publicKeys];
     return publicKeys;
 }
 

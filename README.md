@@ -113,15 +113,14 @@ npm start
 
 ### Configuration
 
-Copy `.env.example` to `.env` and set `WEATHERAPI_KEYS` if you want
-location-based sunrise/sunset and cloud-cover data (get free keys at
-<https://www.weatherapi.com/>). Multiple keys can be comma-separated — one is
-picked at random per request, and a rejected key (invalid, out of quota, or
-blocked) automatically retries once with a different key. The legacy single
-`WEATHERAPI_KEY` variable is also accepted. This is optional — without it,
-the app falls back to a cached location or default 07:00/19:00
-sunrise/sunset. **`.env` is git-ignored on purpose; never commit real API
-keys.**
+The app ships with bundled WeatherAPI keys, so location-based sunrise/sunset
+and cloud-cover data work out of the box — no configuration needed. If you
+want to add your own keys (free at <https://www.weatherapi.com/>), copy
+`.env.example` to `.env` and set `WEATHERAPI_PRIVATE_KEYS` (tried first, in
+order) or `WEATHERAPI_KEYS` (joined with the bundled pool). One key is picked
+per request and a rejected key (invalid, out of quota, or blocked)
+automatically retries with a different one. **`.env` is git-ignored on
+purpose; never commit real API keys.**
 
 ### Building a distributable
 
