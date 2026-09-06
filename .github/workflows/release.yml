@@ -36,10 +36,17 @@ jobs:
         run: npm install
 
       - name: Build distributable
-        run: npm run ${{ matrix.script }}
+        run: npm run ${{ matrix.script }} > build-output.log 2>&1; code=$?; tail -60 build-output.log; exit $code
         env:
           # electron-builder GitHub publish token (set automatically on Actions)
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-build-log
+          path: build-output.log
 
       - name: Collect artifacts
         shell: bash
