@@ -19,14 +19,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            script: package:win
-            artifact_glob: dist/LuxLearn-win32-x64
+            script: dist:win
           - os: macos-latest
-            script: package:mac
-            artifact_glob: dist/LuxLearn-darwin-universal
+            script: dist:mac
           - os: ubuntu-latest
-            script: package:linux
-            artifact_glob: dist/LuxLearn-linux-x64
+            script: dist:linux
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -38,19 +35,23 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Package app
+      - name: Build distributable
         run: npm run ${{ matrix.script }}
+        env:
+          # electron-builder GitHub publish token (set automatically on Actions)
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Zip artifact
+      - name: Collect artifacts
         shell: bash
         run: |
-          cd dist
-          zip -r "$(basename '${{ matrix.artifact_glob }}').zip" "$(basename '${{ matrix.artifact_glob }}')"
+          mkdir -p release-assets
+          find dist -maxdepth 1 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.blockmap" \) -exec cp {} release-assets/ \;
+          ls -la release-assets
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }}-build
-          path: dist/*.zip
+          path: release-assets/*
 
   release:
     needs: package
@@ -63,5 +64,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*.zip
+          files: |
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
           generate_release_notes: true
