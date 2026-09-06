@@ -1182,8 +1182,17 @@ class BrightnessManager extends EventEmitter {
       this.settings.autoBrightMin !== newSettings.autoBrightMin ||
       this.settings.pollIntervalSec !== newSettings.pollIntervalSec ||
       this.settings.logSyncMin !== newSettings.logSyncMin;
+    // A changed learning duration re-bases the phase timer so the counter in
+    // the profile reflects the user's new expectation (e.g. restoring imported
+    // settings with learningDays=7 while 2 days in should not instantly
+    // complete the phase).
+    const learningDaysChanged = this.settings.learningDays !== newSettings.learningDays;
     this.settings = newSettings;
     this._emitLog('info', 'Settings updated.');
+    if (learningDaysChanged && this.learningConfig.learningMode) {
+      this.learningConfig.startTime = Date.now();
+      this.#isDirty = true;
+    }
     if (needsRestart) {
       this.shutdown();
     if (this.settings.autoEnabled) this.start(8000);
@@ -1676,6 +1685,17 @@ class BrightnessManager extends EventEmitter {
     this._emitLog('info', 'Adjustments resumed.');
   }
 
+  // Re-arms the learning phase without wiping recorded history (settings reset,
+  // imported config with an unfinished phase). clearLearningLogs() handles the
+  // wipe-and-restart variant.
+  restartLearningPhase() {
+    this.learningConfig.learningMode = true;
+    this.learningConfig.startTime = Date.now();
+    this.#isDirty = true;
+    this._updateLearningPhase(0);
+    this._emitLog('info', 'Learning phase restarted from day 0.');
+  }
+
   clearLearningLogs() {
     this.logs = [];
     this.#initializeStats();
@@ -1693,7 +1713,7 @@ class BrightnessManager extends EventEmitter {
     this.#lastAmbientState = null;
     this.#lastAmbientStateAt = 0;
     this._resetAdjustmentInterval();
-    this._emitLog('success', 'Learning history cleared. Starting fresh — brightness now follows the safe fallback estimate.');
+    this._emitLog('success', 'Learning history cleared. Learning phase restarted; brightness now follows the safe fallback estimate.');
     setImmediate(() => {
       this.#clearResetCyclePending = false;
       this.manualOverrideUntil = 0;

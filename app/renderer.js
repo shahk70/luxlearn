@@ -876,6 +876,14 @@ window.addEventListener('DOMContentLoaded', () => {
             showToast(t('profile.importSuccess', { count: result.count }));
             invalidateHistoryChart();
             drawHistoryChart();
+            // Restored settings may carry a different learning phase; refresh
+            // the profile (progress row) and status panels from the manager.
+            window.api.loadSettings?.().then((settings) => {
+                applyConfig(settings, { skipIfCurrent: true });
+            });
+            window.api.loadLearningConfig?.().then((lc) => {
+                if (lc) updateProfileUI(lastAppliedConfig || {}, lc);
+            });
         } else if (result && !result.canceled && result.error) {
             showToast(t('profile.importInvalid', { reason: result.error }));
         }
@@ -892,6 +900,11 @@ window.addEventListener('DOMContentLoaded', () => {
                     showToast(t('toast.historyCleared'));
                     invalidateHistoryChart();
                     drawHistoryChart();
+                    // Phase and day counter restart with the cleared history;
+                    // pull the fresh config so the profile row shows day 0.
+                    window.api.loadLearningConfig?.().then((lc) => {
+                        if (lc) updateProfileUI(lastAppliedConfig || {}, lc);
+                    });
                 } else {
                     showToast(t('toast.clearFailed'))
                 }

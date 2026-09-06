@@ -1,6 +1,27 @@
 // preload.js
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Events sent before the renderer registers its listeners (e.g. right after
+// did-finish-load) would otherwise be lost, leaving status fields stuck at
+// their "--" placeholders. Buffer the latest payload per channel and replay
+// it on first subscription.
+const earlyBuffer = {};
+const bufferedChannels = ['weather-update', 'dynamic-status-update', 'settings-updated', 'log-update', 'update-available', 'os-support-update'];
+for (const channel of bufferedChannels) {
+    ipcRenderer.on(channel, (_event, value) => {
+        earlyBuffer[channel] = value;
+    });
+}
+
+function subscribe(channel, callback) {
+    const wrapped = (_event, value) => callback(value);
+    ipcRenderer.on(channel, wrapped);
+    if (channel in earlyBuffer) {
+        queueMicrotask(() => callback(earlyBuffer[channel]));
+    }
+    return () => ipcRenderer.removeListener(channel, wrapped);
+}
+
 contextBridge.exposeInMainWorld('api', {
      saveSettings: (config) => ipcRenderer.invoke('save-settings', config),
      loadSettings: () => ipcRenderer.invoke('load-settings'),
@@ -31,11 +52,11 @@ contextBridge.exposeInMainWorld('api', {
      getBrightnessHistory: (hours) => ipcRenderer.invoke('get-brightness-history', hours),
      clearLearningLogs: () => ipcRenderer.invoke('clear-learning-logs'),
      exportLogsCsv: () => ipcRenderer.invoke('export-logs-csv'),
-     onWeatherUpdate: (callback) => ipcRenderer.on('weather-update', (_event, value) => callback(value)),
-     onDynamicStatusUpdate: (callback) => ipcRenderer.on('dynamic-status-update', (_event, value) => callback(value)),
-     onSettingsUpdated: (callback) => ipcRenderer.on('settings-updated', (_event, data) => callback(data)),
-     onLogUpdate: (callback) => ipcRenderer.on('log-update', (_event, value) => callback(value)),
-     onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (_event, data) => callback(data)),
-     onOsSupportUpdate: (callback) => ipcRenderer.on('os-support-update', (_event, data) => callback(data)),
+     onWeatherUpdate: (callback) => subscribe('weather-update', callback),
+     onDynamicStatusUpdate: (callback) => subscribe('dynamic-status-update', callback),
+     onSettingsUpdated: (callback) => subscribe('settings-updated', callback),
+     onLogUpdate: (callback) => subscribe('log-update', callback),
+     onUpdateAvailable: (callback) => subscribe('update-available', callback),
+     onOsSupportUpdate: (callback) => subscribe('os-support-update', callback),
      openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

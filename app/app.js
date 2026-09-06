@@ -441,7 +441,12 @@ async function computeOsSupport() {
 ipcMain.handle('save-settings', (_, s) => persistAndApplySettings(s));
 ipcMain.handle('load-settings', () => state.settings);
 ipcMain.handle('load-learning-config', () => brightnessManager?.learningConfig || {});
-ipcMain.handle('reset-settings', () => persistAndApplySettings({ ...defaultSettings }));
+ipcMain.handle('reset-settings', async () => {
+    // Resetting settings also restarts the learning phase from day 0, matching
+    // the "clear history" behavior — a factory reset should be a clean slate.
+    brightnessManager?.restartLearningPhase();
+    return persistAndApplySettings({ ...defaultSettings });
+});
 ipcMain.handle('get-username', () => os.userInfo().username || 'User');
 ipcMain.handle('get-os-support', () => computeOsSupport());
 ipcMain.handle('get-brightness-backend', () => getBrightnessBackendName().catch(() => null));
@@ -700,10 +705,19 @@ ipcMain.handle('import-data', async () => {
         }
         if (data.learningConfig && brightnessManager) {
             const lc = data.learningConfig;
+            // An imported learning phase descriptor replaces the local one so
+            // the restored setup continues its original phase (or restarts it
+            // if the importer's phase had already completed).
             if (typeof lc.startTime !== 'undefined' && !isNaN(new Date(lc.startTime).getTime())) {
                 brightnessManager.learningConfig.startTime = new Date(lc.startTime).getTime();
                 imported++;
             }
+            if (typeof lc.learningMode === 'boolean') {
+                brightnessManager.learningConfig.learningMode = lc.learningMode;
+                if (!lc.learningMode) brightnessManager._updateLearningPhase(1);
+                imported++;
+            }
+            sendDynamicStatusUpdate();
         }
         persistAndApplySettings(state.settings);
         sendDynamicStatusUpdate();

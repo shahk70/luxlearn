@@ -15,19 +15,32 @@ const CONFIG = {
 };
 
 function getWeatherApiKeys() {
-    const plural = (process.env.WEATHERAPI_KEYS || '')
-        .split(',')
-        .map((k) => k.trim())
-        .filter(Boolean);
-    if (plural.length > 0) return plural;
+    // WEATHERAPI_PRIVATE_KEYS: your own keys, tried first in order — they are
+    // never rotated randomly, so they only serve this install and public
+    // releases don't burn their quota. WEATHERAPI_KEYS: public/shared keys
+    // used as fallback (and as the only source when no private key is set).
+    const privateKeys = (process.env.WEATHERAPI_PRIVATE_KEYS || '')
+        .split(',').map((k) => k.trim()).filter(Boolean);
+    const publicKeys = (process.env.WEATHERAPI_KEYS || '')
+        .split(',').map((k) => k.trim()).filter(Boolean);
+    if (privateKeys.length > 0) return [...privateKeys, ...publicKeys];
     const single = (process.env.WEATHERAPI_KEY || '').trim();
-    return single ? [single] : [];
+    if (single) return [single];
+    return publicKeys;
 }
 
 function pickRandomKey(keys, excludeKey = null) {
     const pool = excludeKey ? keys.filter((k) => k !== excludeKey) : keys;
     if (pool.length === 0) return null;
     return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function isPrivateKey(key) {
+    const privateSet = new Set(
+        (process.env.WEATHERAPI_PRIVATE_KEYS || '')
+            .split(',').map((k) => k.trim()).filter(Boolean)
+    );
+    return privateSet.has(key);
 }
 
 let memCache = {
@@ -194,10 +207,16 @@ async function fetchFromApi() {
 
     let lastError = null;
     let attemptedKey = null;
+    const usedKeys = new Set();
 
-    for (let attempt = 0; attempt < Math.min(2, keys.length); attempt++) {
-        const apiKey = pickRandomKey(keys, attemptedKey);
+    for (let attempt = 0; attempt < Math.min(3, keys.length); attempt++) {
+        // First attempts use private keys in order (they cost nothing);
+        // once those are exhausted, fall back to a random public key.
+        const privateUnused = keys.filter((k) => isPrivateKey(k) && !usedKeys.has(k));
+        const apiKey = privateUnused.length > 0 ? privateUnused[0]
+            : pickRandomKey(keys.filter((k) => !usedKeys.has(k)), null);
         if (!apiKey) break;
+        usedKeys.add(apiKey);
         attemptedKey = apiKey;
 
         let res;
