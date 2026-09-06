@@ -1,0 +1,67 @@
+name: Release
+
+# Triggered by pushing a version tag, e.g.:
+#   git tag v1.0.1 && git push --tags
+#
+# Builds a distributable for each OS and attaches them to a GitHub Release.
+# The update checker (inlined in app/app.js) polls this repo's "latest
+# release" endpoint, so tagging a release here is what makes the in-app
+# update banner show up for users.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  package:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            script: package:win
+            artifact_glob: dist/LuxLearn-win32-x64
+          - os: macos-latest
+            script: package:mac
+            artifact_glob: dist/LuxLearn-darwin-universal
+          - os: ubuntu-latest
+            script: package:linux
+            artifact_glob: dist/LuxLearn-linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Package app
+        run: npm run ${{ matrix.script }}
+
+      - name: Zip artifact
+        shell: bash
+        run: |
+          cd dist
+          zip -r "$(basename '${{ matrix.artifact_glob }}').zip" "$(basename '${{ matrix.artifact_glob }}')"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-build
+          path: dist/*.zip
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip
+          generate_release_notes: true

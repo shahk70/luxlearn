@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Packaged / build output
+dist/
+out/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.zip
+
+# Compiled CSS (generated from app/style.scss via `npm run build:css`)
+app/style.css
+app/style.css.map
+
+# Secrets -- never commit real API keys
+.env
+.env.*
+!.env.example
+
+# Runtime data written by core.js when not running inside Electron
+# (Electron itself writes to the OS userData folder, which is outside the repo)
+data/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

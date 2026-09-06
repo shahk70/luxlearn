@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Compile stylesheet
+        run: npm run build:css
+
+      - name: Sanity-check package.json
+        run: node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
+        shell: bash
+
+      - name: Syntax-check all JS files (no execution)
+        run: |
+          node --check index.js
+          node --check app/app.js
+          node --check app/i18n.js
+          node --check app/preload.js
+          node --check app/renderer.js
+          for f in *.js; do node --check "$f"; done
+        shell: bash

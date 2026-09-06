@@ -1,0 +1,128 @@
+{
+  "name": "luxlearn",
+  "version": "1.2.2",
+  "description": "LuxLearn — your screen learns the light around you. A cross-platform Electron app that blends ambient light, webcam, screen content and time of day into brightness that feels natural.",
+  "license": "UNLICENSED",
+  "author": "shah",
+  "homepage": "https://github.com/shahk70/luxlearn#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shahk70/luxlearn.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shahk70/luxlearn/issues"
+  },
+  "keywords": [
+    "electron",
+    "brightness",
+    "ambient-light",
+    "auto-brightness",
+    "screen-brightness",
+    "display",
+    "monitor"
+  ],
+  "type": "commonjs",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "npm run build:css && electron .",
+    "dev": "npm run build:css && electron .",
+    "build:css": "sass app/style.scss app/style.css --no-source-map --style=expanded",
+    "watch:css": "sass --watch app/style.scss:app/style.css --no-source-map",
+    "postinstall": "npm run build:css",
+    "dist:win": "npm run build:css && electron-builder --win --x64",
+    "dist:mac": "npm run build:css && electron-builder --mac",
+    "dist:linux": "npm run build:css && electron-builder --linux",
+    "dist": "npm run build:css && electron-builder -wml",
+    "store:win": "npm run build:css && electron-builder --win --x64 appx"
+  },
+  "dependencies": {
+    "@techstark/opencv-js": "^4.12.0-release.1",
+    "active-win": "^8.2.1",
+    "bmp-js": "^0.1.0",
+    "dotenv": "^16.4.5",
+    "node-webcam": "^0.8.2",
+    "sharp": "^0.34.3",
+    "suncalc": "^1.9.0"
+  },
+  "devDependencies": {
+    "electron": "^36.2.0",
+    "electron-builder": "^25.0.0",
+    "sass": "^1.77.8"
+  },
+  "build": {
+    "appId": "com.shah.luxlearn",
+    "productName": "LuxLearn",
+    "copyright": "Copyright © 2026 shah. All Rights Reserved.",
+    "files": [
+      "index.js",
+      "core.js",
+      "signals.js",
+      "BrightnessManager.js",
+      "weather.js",
+      "webcam.js",
+      "webcamAnalysis_worker.js",
+      "haarcascade_frontalface_default.xml",
+      "app/**/*",
+      "!app/**/*.map",
+      "!app/style.scss"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "asarUnpack": [
+      "**/node_modules/node-webcam/src/bindings/CommandCam/CommandCam.exe"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "appx"
+      ],
+      "icon": "app/images/icon.ico",
+      "artifactName": "${productName}-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "app/images/icon.ico",
+      "uninstallerIcon": "app/images/icon.ico",
+      "installerHeaderIcon": "app/images/icon.ico",
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "shortcutName": "LuxLearn",
+      "license": "build/license.txt",
+      "include": "build/installer.nsh"
+    },
+    "appx": {
+      "applicationId": "LuxLearn",
+      "publisherDisplayName": "shah",
+      "identityName": "LuxLearn",
+      "languages": ["en-us", "de-de", "fa", "tr-tr"]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "app/images/icon.icns",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "app/images/icon.png",
+      "category": "Utility"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "shahk70",
+      "repo": "luxlearn"
+    }
+  }
+}

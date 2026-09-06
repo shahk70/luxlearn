@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self';
+    style-src 'self' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data:;
+    connect-src 'self';
+    object-src 'none';
+    base-uri 'none';
+  ">
+  <title>SKR Auto Brightness</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <header class="titlebar">
+    <div class="titlebar-drag">
+      <svg class="titlebar-logo" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 18.5C15.5899 18.5 18.5 15.5899 18.5 12C18.5 8.41015 15.5899 5.5 12 5.5C8.41015 5.5 5.5 8.41015 5.5 12C5.5 15.5899 8.41015 18.5 12 18.5Z" stroke="currentColor" stroke-width="2"></path>
+        <path d="M12 2V3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M12 20.5V22" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M22 12L20.5 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M3.5 12L2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+      </svg>
+      <span class="titlebar-title" data-i18n="app.name">LuxLearn</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="winMinimize" aria-label="Minimize">
+        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg>
+      </button>
+      <button class="titlebar-btn" id="winMaximize" aria-label="Maximize">
+        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+      </button>
+      <button class="titlebar-btn titlebar-close" id="winClose" aria-label="Hide to tray">
+        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <svg class="logo" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path
+          d="M12 18.5C15.5899 18.5 18.5 15.5899 18.5 12C18.5 8.41015 15.5899 5.5 12 5.5C8.41015 5.5 5.5 8.41015 5.5 12C5.5 15.5899 8.41015 18.5 12 18.5Z"
+          stroke="currentColor" stroke-width="1.5"></path>
+        <path d="M12 2V3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+        <path d="M12 20.5V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+        <path d="M22 12L20.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+        <path d="M3.5 12L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+      <h2 data-i18n="app.name">LuxLearn</h2>
+      <div class="theme-toggle" role="group" aria-label="Theme">
+        <button class="theme-opt" id="themeLightBtn" data-i18n-title="common.light" data-i18n-aria-label="common.light" title="Light" aria-label="Light" aria-pressed="false">
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+          </svg>
+        </button>
+        <button class="theme-opt" id="themeDarkBtn" data-i18n-title="common.dark" data-i18n-aria-label="common.dark" title="Dark" aria-label="Dark" aria-pressed="false">
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+        </button>
+        <button class="theme-opt" id="themeSystemBtn" data-i18n-title="common.system" data-i18n-aria-label="common.system" title="System" aria-label="System" aria-pressed="false">
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <ul class="menu" role="tablist" aria-label="Navigation">
+      <li data-page="settings" class="active" role="tab" aria-selected="true" tabindex="0">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path
+            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2.73l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2.73l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
+          </path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+        <span data-i18n="nav.settings">Settings</span>
+      </li>
+      <li data-page="profile" role="tab" aria-selected="false" tabindex="0">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span data-i18n="nav.profile">User Profile</span>
+      </li>
+      <li data-page="status" role="tab" aria-selected="false" tabindex="0">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+        </svg>
+        <span data-i18n="nav.status">Status</span>
+      </li>
+      <li data-page="activities" role="tab" aria-selected="false" tabindex="0">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+          <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"></path>
+        </svg>
+        <span data-i18n="nav.activities">Activities</span>
+      </li>
+      <li data-page="about" role="tab" aria-selected="false" tabindex="0">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span data-i18n="nav.about">About</span>
+      </li>
+    </ul>
+    <ul class="footer-menu" role="tablist" aria-label="More">
+      <li data-page="donate" role="tab" aria-selected="false" tabindex="0">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="red" stroke="red"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path
+            d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.77-.77-.77a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z">
+          </path>
+        </svg>
+        <span data-i18n="nav.donate">Donate</span>
+      </li>
+      <li data-page="help" role="tab" aria-selected="false" tabindex="0">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span data-i18n="nav.help">Help</span>
+      </li>
+    </ul>
+  </aside>
+
+  <main class="main-content">
+    <div id="updateBanner" class="update-banner" hidden>
+      <span id="updateBannerText" data-i18n="update.available">A new version is available.</span>
+      <div class="update-banner-actions">
+        <button class="btn btn-primary btn-sm" id="updateBannerViewBtn" data-i18n="update.viewRelease">View release</button>
+        <button class="btn btn-secondary btn-sm" id="updateBannerDismissBtn" aria-label="Dismiss" data-i18n="update.dismiss">Dismiss</button>
+      </div>
+    </div>
+    <div class="page active" id="page-settings">
+      <h1 data-i18n="settings.title">Automatic Brightness</h1>
+
+      <section class="card">
+        <div class="card-header">
+          <div class="toggle-row">
+            <span class="toggle-label" data-i18n="settings.enableAuto">Enable Automatic Brightness</span>
+            <div class="toggle-container">
+              <label class="toggle">
+                <input type="checkbox" id="enableAuto">
+                <span class="slider"></span>
+              </label>
+              <span class="toggle-state" id="toggleState" data-i18n="settings.off">Off</span>
+            </div>
+          </div>
+
+          <div class="sub-card" id="adjustDuringLearningRow" hidden>
+            <div class="toggle-row toggle-row-nested">
+              <div class="sub-card-text">
+                <span class="toggle-label" data-i18n="settings.adjustWhileLearning">Adjust during learning phase</span>
+                <p class="sub-card-note" data-i18n="settings.adjustWhileLearningNote">While the engine is still learning, allow it to move brightness based on its early predictions. Turn off to keep brightness untouched until learning completes.</p>
+              </div>
+              <div class="toggle-container">
+                <label class="toggle">
+                  <input type="checkbox" id="adjustDuringLearning">
+                  <span class="slider"></span>
+                </label>
+                <span class="toggle-state" id="adjustDuringLearningState" data-i18n="settings.on">On</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="form-group-redesigned" id="languageRow">
+            <div class="form-heading">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="icon-form" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+              <label for="languageSelect" data-i18n="settings.language">Language</label>
+            </div>
+            <select id="languageSelect" class="language-select" aria-label="Language">
+              <option value="en">English</option>
+              <option value="de">Deutsch</option>
+              <option value="fa">فارسی</option>
+              <option value="tr">Türkçe</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="ru">Русский</option>
+              <option value="zh">中文</option>
+            </select>
+          </div>
+
+          <div class="device-row" id="deviceRow">
+            <div class="device-row-item">
+              <div class="form-heading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon-form" aria-hidden="true">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                  <circle cx="12" cy="13" r="3"></circle>
+                </svg>
+                <label for="cameraDeviceSelect" data-i18n="settings.cameraDevice">Camera</label>
+              </div>
+              <select id="cameraDeviceSelect" class="device-select" aria-label="Camera">
+                <option value="" data-i18n="settings.cameraAuto">Automatic</option>
+              </select>
+            </div>
+            <div class="device-row-item">
+              <div class="form-heading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon-form" aria-hidden="true">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                <label for="targetDisplaySelect" data-i18n="settings.display">Display</label>
+              </div>
+              <select id="targetDisplaySelect" class="device-select" aria-label="Display">
+                <option value="all" data-i18n="settings.displayAll">All displays</option>
+              </select>
+            </div>
+          </div>
+
+          <fieldset class="radio-button-group" id="optionsBox">
+            <legend class="sr-only" data-i18n="settings.methodLegend">Brightness Adjustment Method</legend>
+            <div class="radio-button" id="rowCustom">
+              <input type="radio" class="radio-button__input" name="method" value="custom" id="optCustom">
+              <label class="radio-button__label" for="optCustom">
+                <span class="radio-button__custom"></span>
+                <span data-i18n="settings.custom">Custom Hours</span>
+              </label>
+            </div>
+            <div class="radio-button" id="rowLocation">
+              <input type="radio" class="radio-button__input" name="method" value="location" id="optLocation" checked>
+              <label class="radio-button__label" for="optLocation">
+                <span class="radio-button__custom"></span>
+                <span data-i18n="settings.location">Location</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="location-data" id="locationData">
+            <div class="location-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="location-icon" aria-hidden="true">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              <span class="location-span" data-i18n="settings.city">City: </span><span id="cityName">--</span>
+            </div>
+            <div class="location-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="location-icon" aria-hidden="true">
+                <path d="M12 2v8"></path>
+                <path d="m4.93 10.93 1.41 1.41"></path>
+                <path d="M2 18h2"></path>
+                <path d="M20 18h2"></path>
+                <path d="m19.07 10.93-1.41 1.41"></path>
+                <path d="M22 22H2"></path>
+                <path d="m8 6 4-4 4 4"></path>
+              </svg>
+              <span class="location-span" data-i18n="settings.sunriseLabel">Sunrise: </span><span id="lightTime">--</span>
+            </div>
+            <div class="location-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="location-icon" aria-hidden="true">
+                <path d="M12 10V2"></path>
+                <path d="m4.93 10.93 1.41 1.41"></path>
+                <path d="M2 18h2"></path>
+                <path d="M20 18h2"></path>
+                <path d="m19.07 10.93-1.41 1.41"></path>
+                <path d="M22 22H2"></path>
+                <path d="m16 6-4 4-4-4"></path>
+              </svg>
+              <span class="location-span" data-i18n="settings.sunsetLabel">Sunset: </span><span id="darkTime">--</span>
+            </div>
+            <div class="location-update-note"><span data-i18n="settings.nextUpdate">Next update:</span> <span id="nextUpdate">--</span></div>
+          </div>
+
+          <div class="custom-fields" id="customFields">
+            <p class="custom-note" id="note" data-i18n="settings.timeHint">Please enter times in 24-hour format (HH:MM)</p>
+            <div class="row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true">
+                <path d="M12 2v8"></path>
+                <path d="m4.93 10.93 1.41 1.41"></path>
+                <path d="M2 18h2"></path>
+                <path d="M20 18h2"></path>
+                <path d="m19.07 10.93-1.41 1.41"></path>
+                <path d="M22 22H2"></path>
+                <path d="m8 6 4-4 4 4"></path>
+              </svg>
+              <label for="sunriseHour" data-i18n="settings.sunriseField">Sunrise</label>
+              <div class="number-input-wrapper">
+                <input type="number" id="sunriseHour" min="0" max="23" placeholder="HH" aria-label="Sunrise hour">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase hour" tabindex="-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                  </button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease hour" tabindex="-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <span class="time-separator" aria-hidden="true">:</span>
+              <div class="number-input-wrapper">
+                <input type="number" id="sunriseMinute" min="0" max="59" placeholder="MM" aria-label="Sunrise minute">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minute" tabindex="-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                  </button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minute" tabindex="-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true">
+                <path d="M12 10V2"></path>
+                <path d="m4.93 10.93 1.41 1.41"></path>
+                <path d="M2 18h2"></path>
+                <path d="M20 18h2"></path>
+                <path d="m19.07 10.93-1.41 1.41"></path>
+                <path d="M22 22H2"></path>
+                <path d="m16 6-4 4-4-4"></path>
+              </svg>
+              <label for="sunsetHour" data-i18n="settings.sunsetField">Sunset</label>
+              <div class="number-input-wrapper">
+                <input type="number" id="sunsetHour" min="0" max="23" placeholder="HH" aria-label="Sunset hour">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase hour" tabindex="-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                  </button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease hour" tabindex="-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <span class="time-separator" aria-hidden="true">:</span>
+              <div class="number-input-wrapper">
+                <input type="number" id="sunsetMinute" min="0" max="59" placeholder="MM" aria-label="Sunset minute">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minute" tabindex="-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                  </button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minute" tabindex="-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="card" id="advanced-settings">
+        <div class="card-header">
+          <h2 data-i18n="settings.learningSection">Learning Phase &amp; Intervals</h2>
+        </div>
+        <div class="card-body">
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+
+            <div class="form-group-redesigned">
+              <div class="form-heading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon-form" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <label for="learning-duration" data-i18n="settings.learningLabel">Days</label>
+              </div>
+              <p class="form-description" data-i18n="settings.learningDesc">The number of days the program will learn before making automatic changes.</p>
+              <div class="number-input-wrapper">
+                <input type="number" name="learning-fase-duration" id="learning-duration" min="1"
+                  max="31">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase days" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease days" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group-redesigned">
+              <div class="form-heading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon-form" aria-hidden="true">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                </svg>
+                <label for="learning-polinterval" data-i18n="settings.pollLabel">Poll Interval (seconds)</label>
+              </div>
+              <p class="form-description" data-i18n="settings.pollDesc">How often to check for manual brightness changes. Lower is faster.</p>
+              <div class="number-input-wrapper">
+                <input type="number" name="learning-fase-polinterval" id="learning-polinterval"
+                  min="1" max="600">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase seconds" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease seconds" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group-redesigned">
+              <div class="form-heading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon-form" aria-hidden="true">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                <label for="learning-logSyncInterval" data-i18n="settings.logSyncLabel">Log Sync Interval (minutes)</label>
+              </div>
+              <p class="form-description" data-i18n="settings.logSyncDesc">How often to save detected changes to the log.</p>
+              <div class="number-input-wrapper">
+                <input type="number" name="learning-fase-logSyncInterval" id="learning-logSyncInterval"
+                  min="0.5" max="600" step="0.5">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minutes" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minutes" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group-redesigned">
+              <div class="form-heading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon-form" aria-hidden="true">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <label for="learning-loglimit" data-i18n="settings.logLimitLabel">Log Limit</label>
+              </div>
+              <p class="form-description" data-i18n="settings.logLimitDesc">The maximum number of logs to store. Higher is more accurate.</p>
+              <div class="number-input-wrapper">
+                <input type="number" name="learning-fase-loglimit" id="learning-loglimit"
+                  min="50" max="2000" step="10">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase limit" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease limit" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group-redesigned">
+              <div class="form-heading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon-form" aria-hidden="true">
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <label for="auto-interval" data-i18n="settings.autoIntervalLabel">LuxLearn Interval (minutes)</label>
+              </div>
+              <p class="form-description" data-i18n="settings.autoIntervalDesc">How often the app auto-adjusts brightness after the learning phase is
+                complete.</p>
+              <div class="number-input-wrapper">
+                <input type="number" name="luxlearn-interval" id="auto-interval" min="0.1"
+                  max="60" step="0.1">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minutes" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minutes" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group-redesigned">
+              <div class="form-heading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon-form" aria-hidden="true">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                <label for="manual-override-minutes" data-i18n="settings.overrideLabel">Manual Override Duration (minutes)</label>
+              </div>
+              <p class="form-description" data-i18n="settings.overrideDesc">How long to pause automatic adjustments after you manually change
+                brightness yourself.</p>
+              <div class="number-input-wrapper">
+                <input type="number" name="manual-override-minutes" id="manual-override-minutes"
+                  min="1" max="60">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minutes" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minutes" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group-redesigned">
+              <div class="form-heading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon-form" aria-hidden="true">
+                  <path d="M12 3v18M5 10l7-7 7 7"></path>
+                  <path d="M19 14l-7 7-7-7" transform="translate(0,-1)"></path>
+                </svg>
+                <label for="hysteresis-percent" data-i18n="settings.thresholdLabel">Adjustment Threshold (%)</label>
+              </div>
+              <p class="form-description" data-i18n="settings.thresholdDesc">Minimum brightness change before the app adjusts again — higher values
+                reduce flicker, lower values react faster. Brighten threshold uses this value; dimming uses 1.25×
+                it. Confidence can raise the effective threshold up to 2.5×.</p>
+              <div class="number-input-wrapper">
+                <input type="number" name="hysteresis-percent" id="hysteresis-percent"
+                  min="0" max="25" step="0.5">
+                <div class="stepper-buttons">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase threshold" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease threshold" tabindex="-1"><svg
+                      xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="page" id="page-profile">
+      <h1 data-i18n="profile.title">User Profile</h1>
+      <section class="card profile-card">
+        <div class="card-body">
+          <dl class="definition-list">
+            <dt data-i18n="profile.username">Username</dt>
+            <dd id="profile-username">--</dd>
+            <dt data-i18n="profile.method">Preferred Method</dt>
+            <dd id="profile-method">--</dd>
+            <dt data-i18n="profile.progress">Learning Progress</dt>
+            <dd id="profile-learning-progress">--</dd>
+            <dt data-i18n="profile.interval">LuxLearn Interval</dt>
+            <dd id="profile-auto-interval">--</dd>
+          </dl>
+        </div>
+        <div class="card-footer profile-actions">
+          <button class="btn btn-secondary" id="exportDataBtn" data-i18n="profile.export">Export Settings &amp; Data</button>
+          <button class="btn btn-secondary" id="importDataBtn" data-i18n="profile.import">Import Settings &amp; Data</button>
+          <button class="btn btn-secondary" id="resetSettingsBtn" data-i18n="profile.reset">Reset Settings</button>
+          <button class="btn btn-danger" id="clearLogsBtn" data-i18n="profile.clearLogs">Clear Learning History</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="page" id="page-status">
+      <h1 data-i18n="status.title">Status</h1>
+      <section class="card status-card">
+        <div class="card-body">
+          <dl class="definition-list">
+            <dt data-i18n="status.brightness">Current Brightness</dt>
+            <dd id="status-brightness">--%</dd>
+
+            <dt data-i18n="status.learningPhase">Learning Phase</dt>
+            <dd id="status-learning-phase">--</dd>
+
+            <dt data-i18n="status.confidence">Automation Confidence</dt>
+            <dd id="status-confidence">--%</dd>
+
+            <dt data-i18n="status.logs">Logs Recorded</dt>
+            <dd id="status-logs-recorded">-- / --</dd>
+
+            <dt data-i18n="status.auto">Auto Brightness</dt>
+            <dd id="status-luxlearnness" class="">---</dd>
+
+            <dt data-i18n="status.next">Next Adjustment</dt>
+            <dd id="status-next-adjustment">--</dd>
+
+            <dt data-i18n="status.als">Ambient Light Sensor</dt>
+            <dd id="status-als">--</dd>
+
+            <dt data-i18n="status.power">Power</dt>
+            <dd id="status-power">--</dd>
+
+            <dt data-i18n="status.nightlight">Night Light</dt>
+            <dd id="status-nightlight">--</dd>
+
+            <dt id="status-lightmode-label" hidden data-i18n="status.lowpower">Low-power Mode</dt>
+            <dd id="status-lightmode" hidden>--</dd>
+          </dl>
+          <div class="pause-row" id="pauseRow">
+            <button class="btn btn-secondary btn-sm" id="pauseBtn" data-i18n="status.pause">Pause adjustments</button>
+            <button class="btn btn-secondary btn-sm" id="resumeBtn" hidden data-i18n="status.resume">Resume now</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="history-card">
+        <div class="card-header history-header">
+          <h3 data-i18n="status.history">Brightness History</h3>
+          <div class="range-toggle" role="tablist" aria-label="History range">
+            <button class="range-btn active" data-range="24" role="tab" aria-selected="true" data-i18n="status.history24h">24h</button>
+            <button class="range-btn" data-range="168" role="tab" aria-selected="false" data-i18n="status.history7d">7d</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap">
+            <canvas id="historyChart" width="720" height="200" aria-label="Brightness over time" title="Dots mark manual changes. Hover for exact values."></canvas>
+            <div class="chart-empty" id="chartEmpty" hidden data-i18n="status.chartEmpty">Not enough data yet — history appears as the app logs changes.</div>
+          </div>
+          <p class="chart-caption" id="chartCaption"></p>
+        </div>
+      </section>
+
+      <section class="card" id="weights-card">
+        <div class="card-header">
+          <h3 data-i18n="status.weights">What the Engine Learns</h3>
+        </div>
+        <div class="card-body">
+          <ul class="weights-list" id="weightsList"></ul>
+          <p class="weights-note" id="weightsNote"></p>
+        </div>
+      </section>
+
+      <section class="card" id="os-warnings-card" hidden>
+        <div class="card-header">
+          <h3 data-i18n="status.systemWarnings">System Warnings</h3>
+        </div>
+        <div class="card-body">
+          <ul class="os-warnings-list" id="os-warnings-list"></ul>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-header">
+          <h3 data-i18n="status.recentChanges">Recent Changes</h3>
+        </div>
+        <div class="card-body">
+          <ul class="recent-changes-list">
+            <li><span>--:--</span> <span data-i18n="status.ready">Ready.</span></li>
+          </ul>
+        </div>
+      </section>
+    </div>
+
+
+    <div class="page" id="page-activities">
+      <h1 data-i18n="activities.title">Activities</h1>
+      <section class="card">
+        <div class="card-body">
+          <p data-i18n="activities.intro">Auto Brightness pauses automatically while a selected activity is running.</p>
+
+          <div class="activity-group">
+            <div class="activity-row">
+              <div class="activity-info">
+                <span class="activity-name" data-i18n="activities.gaming">Gaming</span>
+                <span class="activity-desc" data-i18n="activities.gamingDesc">Fullscreen games detected via window title/process.</span>
+              </div>
+              <div class="toggle-container">
+                <label class="toggle">
+                  <input type="checkbox" id="activityGaming">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="activity-row">
+              <div class="activity-info">
+                <span class="activity-name" data-i18n="activities.video">Watching Video</span>
+                <span class="activity-desc" data-i18n="activities.videoDesc">Video players and streaming apps in fullscreen.</span>
+              </div>
+              <div class="toggle-container">
+                <label class="toggle">
+                  <input type="checkbox" id="activityVideo">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="activity-section-title" data-i18n="activities.addActivity">Add Activity</h3>
+          <p class="activity-guide" data-i18n="activities.guide">An activity pauses automatic brightness while it runs. Match it by the app's process name (e.g. steam.exe, mpv.exe) or a word in its window title (e.g. "Twitch", "YouTube"). Pick a preset below or enter your own.</p>
+          <div class="activity-presets">
+            <button type="button" class="preset-chip" data-preset-process="steam.exe" data-preset-title="Steam">Steam</button>
+            <button type="button" class="preset-chip" data-preset-process="vlc.exe" data-preset-title="VLC">VLC</button>
+            <button type="button" class="preset-chip" data-preset-process="mpv.exe" data-preset-title="mpv">mpv</button>
+            <button type="button" class="preset-chip" data-preset-process="spotify.exe" data-preset-title="Spotify">Spotify</button>
+            <button type="button" class="preset-chip" data-preset-process="Photoshop.exe" data-preset-title="Photoshop">Photoshop</button>
+            <button type="button" class="preset-chip" data-preset-process="xbox.exe" data-preset-title="Xbox">Xbox</button>
+          </div>
+          <div class="activity-form">
+            <input type="text" id="activityName" data-i18n-placeholder="activities.name" placeholder="Name">
+            <select id="activityMatchType">
+              <option value="process" data-i18n="activities.matchProcess">Process name</option>
+              <option value="title" data-i18n="activities.matchTitle">Window title contains</option>
+            </select>
+            <input type="text" id="activityValue" data-i18n-placeholder="activities.matchValue" placeholder="Value">
+            <button class="btn btn-primary btn-sm" id="activityAddBtn" data-i18n="activities.addActivity">Add Activity</button>
+          </div>
+          <ul class="activities-list" id="activitiesList"></ul>
+        </div>
+      </section>
+    </div>
+
+<div class="page" id="page-donate">
+      <img src="./images/donate.jpg" alt="Donation banner" class="donate-img" loading="lazy">
+      <h1 data-i18n="nav.donate">Donate</h1>
+      <section class="card">
+        <div class="card-body">
+          <h2 data-i18n="donate.whyTitle">Why Donate?</h2>
+          <p data-i18n="donate.whyText1">Thank you for using LuxLearn! This app is designed to make your day more pleasant by
+            automatically adjusting your screen brightness. It's completely free, ad-free, respects your privacy, and is
+            open source.</p>
+          <p data-i18n="donate.whyText2">A voluntary donation, no matter the size, makes me incredibly happy and motivates me to keep improving the
+            app. Thank you for valuing my work.</p>
+          <h2 data-i18n="donate.howTitle">How to Donate</h2>
+          <div class="wallets">
+            <div class="wallet-group">
+              <b>USDT (Polygon)</b>
+              <div class="wallet-container">
+                <span class="wallet" readonly>0x54d84834bceaafb03c0e51adf1adb6054e6fc255</span>
+                <button class="copy-btn" data-i18n-title="donate.copyAddress" data-tooltip="Copy address"
+                  data-copy-value="0x54d84834bceaafb03c0e51adf1adb6054e6fc255">
+                  <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="wallet-group">
+              <b>GRAM</b>
+              <div class="wallet-container">
+                <span class="wallet" readonly>EQD6I8TsONciAWiRHNiYSfZMzhBTRrbK4jW1Emc3UqjWhTZE</span>
+                <button class="copy-btn" data-i18n-title="donate.copyAddress" data-tooltip="Copy address"
+                  data-copy-value="EQD6I8TsONciAWiRHNiYSfZMzhBTRrbK4jW1Emc3UqjWhTZE">
+                  <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+              <small><span data-i18n="donate.comment">Comment:</span>
+                <div class="wallet-container">
+                  <span class="wallet" readonly>230529868</span>
+                  <button class="copy-btn" data-i18n-title="donate.copyComment" data-tooltip="Copy comment" data-copy-value="230529868">
+                    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                  </button>
+                </div>
+              </small>
+            </div>
+            <div class="wallet-group">
+              <b>TRX</b>
+              <div class="wallet-container">
+                <span class="wallet" readonly>TF4VzYvP7J1P5qV6PxGU9R3z84TyxzV9Jm</span>
+                <button class="copy-btn" data-i18n-title="donate.copyAddress" data-tooltip="Copy address"
+                  data-copy-value="TF4VzYvP7J1P5qV6PxGU9R3z84TyxzV9Jm">
+                  <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+    <div class="page" id="page-about">
+      <h1 data-i18n="about.title">About</h1>
+
+      <section class="card about-hero">
+        <div class="about-hero-body">
+          <img src="./images/icon.png" alt="LuxLearn" class="about-logo">
+          <div class="about-hero-text">
+            <h2 class="about-appname" data-i18n="app.name">LuxLearn</h2>
+            <p class="about-tagline" data-i18n="about.tagline">Automatic screen brightness that learns your habits.</p>
+            <div class="about-meta">
+              <span class="about-version-chip" id="about-version-chip"><span data-i18n="about.version">Version</span>&nbsp;<b id="about-version">--</b></span>
+              <span class="about-backend-chip" id="about-backend-chip" hidden></span>
+            </div>
+          </div>
+        </div>
+        <div class="about-actions">
+          <button class="btn btn-primary" id="checkUpdatesBtn" data-i18n="about.checkUpdates">Check for Updates</button>
+          <button class="btn btn-secondary" id="aboutGithubBtn" data-i18n="about.github">GitHub Repository</button>
+          <button class="btn btn-secondary" id="aboutLogsBtn" data-i18n="about.openLogs">Open Logs Folder</button>
+          <button class="btn btn-secondary" id="aboutConfigBtn" data-i18n="about.openConfig">Open Settings File</button>
+        </div>
+        <p class="about-update-result" id="updateCheckResult"></p>
+      </section>
+
+      <div class="about-grid">
+        <section class="card">
+          <div class="card-header">
+            <h3 data-i18n="about.howItWorks">How it works</h3>
+          </div>
+          <div class="card-body">
+            <p data-i18n="about.howText">LuxLearn starts adjusting your screen brightness right away, using every signal available: the ambient light sensor if your device has one, the webcam or screen content, and a sunrise/sunset curve. Nothing needs to be configured first.</p>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h3 data-i18n="about.privacyTitle">Your data stays yours</h3>
+          </div>
+          <div class="card-body">
+            <p data-i18n="about.privacyText">All learning data is stored locally on this device only. Nothing is ever uploaded. You can export or wipe it at any time from the User Profile page.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="page" id="page-help">
+      <h1 data-i18n="help.title">Help</h1>
+      <section class="card">
+        <div class="card-body">
+          <p data-i18n="help.intro">LuxLearn starts adjusting your screen brightness right away, using whatever it has available: an
+            ambient light sensor if your device has one, your webcam or screen content, and a sunrise/sunset curve for
+            the time of day. There's nothing you need to configure first.</p>
+          <p data-i18n="help.logging">Every manual brightness change you make is quietly logged and used to fine-tune future predictions. The
+            more it observes, the more it leans on your own habits instead of the generic time-of-day estimate - the
+            "Automation Confidence" figure on the Status page shows how much it currently trusts its own predictions.</p>
+          <p data-i18n="help.learning">There's no strict on/off "learning phase": adjustments blend the learned model with the safe fallback
+            estimate in proportion to that confidence, so behavior stays sensible with very few logs and keeps
+            improving smoothly as more data comes in. The program keeps learning until it reaches the log limit, and
+            new manual changes continue to refine older, similar logs to keep the data relevant. If you prefer the
+            app to leave brightness untouched until it has learned enough, turn off "Adjust during learning phase"
+            in the settings.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  </div>
+
+  <div id="toast" role="alert"></div>
+
+  <div id="confirmOverlay" class="confirm-overlay" hidden>
+    <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+      <h3 id="confirmTitle" data-i18n="common.confirm">Confirm</h3>
+      <p id="confirmMessage"></p>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" id="confirmCancelBtn" data-i18n="common.cancel">Cancel</button>
+        <button class="btn btn-danger" id="confirmOkBtn" data-i18n="common.confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="renderer.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"console.log\\(String\\(new Date\\('2026-08-28 06:22 AM UTC'\\)\\)\\); console.log\\(String\\(new Date\\('2026-08-28 06:22 UTC'\\)\\)\\)\")",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

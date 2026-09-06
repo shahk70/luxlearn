@@ -1,0 +1,59 @@
+LuxLearn — End User License Agreement
+
+Copyright (c) 2026 shah. All Rights Reserved.
+
+IMPORTANT — READ CAREFULLY BEFORE INSTALLING:
+
+This agreement governs your use of LuxLearn ("the Software"). By
+clicking "I Agree" or installing the Software you accept these terms.
+
+1. LICENSE GRANT
+   The Software is proprietary. You may:
+   - Install and run unmodified copies of official builds for personal,
+     non-commercial use on your own devices.
+
+2. RESTRICTIONS
+   You may NOT, without prior written permission from the copyright holder:
+   - Copy, reproduce, or redistribute the Software or any portion of it.
+   - Modify, adapt, translate, or create derivative works from it.
+   - Use it or any part of it in commercial products or paid services.
+   - Sell, sublicense, rent, or lease it.
+   - Remove or alter any copyright, trademark, or proprietary notices.
+   - Use the source code to train machine-learning models.
+
+3. DATA & PRIVACY
+   The Software runs locally on your device. Sensor readings (ambient
+   light, webcam analysis, screen content statistics, battery state) are
+   processed and stored locally on your machine and are not transmitted
+   to the author. Weather data is fetched from a third-party weather
+   API; no personal information beyond an approximate location (city
+   level, required for sunrise/sunset times) is sent. You can disable
+   webcam and location features in the app settings at any time.
+
+4. CAMERA & SYSTEM ACCESS
+   The Software may request access to your webcam and display controls
+   solely to provide ambient-light-based brightness adjustment. Camera
+   imagery is analyzed on-device and never stored, uploaded, or shared.
+
+5. WARRANTY DISCLAIMER
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDER BE
+   LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+   ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+6. THIRD-PARTY COMPONENTS
+   Third-party components bundled with the Software remain under their
+   own licenses — see THIRD_PARTY_NOTICES.md included with the
+   application.
+
+7. TERMINATION
+   This license terminates automatically if you breach any term. Upon
+   termination you must uninstall and cease all use of the Software.
+
+8. CONTACT
+   Licensing inquiries and permission requests:
+   https://github.com/shahk70/luxlearn/issues

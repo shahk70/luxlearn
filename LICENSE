@@ -1,0 +1,30 @@
+Copyright (c) 2026 shah. All Rights Reserved.
+
+LuxLearn ("the Software") is proprietary software. It is NOT open source,
+despite being publicly viewable on GitHub.
+
+You may:
+  - View the source code for personal reference, learning, or security review.
+  - Run unmodified copies of official builds for personal, non-commercial use.
+
+You may NOT, without prior written permission from the copyright holder:
+  - Copy, reproduce, or redistribute the Software or any portion of it.
+  - Modify, adapt, translate, or create derivative works from it.
+  - Use it or any part of it in commercial products or paid services.
+  - Sell, sublicense, rent, or lease it.
+  - Remove or alter any copyright, trademark, or proprietary notices.
+  - Use the source code to train machine-learning models.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Third-party components bundled with the Software remain under their own
+licenses — see THIRD_PARTY_NOTICES.md.
+
+For licensing inquiries or redistribution permission, contact:
+  https://github.com/shahk70/luxlearn/issues
