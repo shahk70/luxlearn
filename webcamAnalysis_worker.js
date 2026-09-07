@@ -424,6 +424,10 @@ function analyzeFrame({ buffer, width, height, faceDetectWidth, analysisWidth, a
         exposure: Math.round(effectiveMean),
         noise: Math.round(baseStats.stdDev),
         sharpness: Math.round(blurStats.variance),
+        // AE-invariant light cues: auto-exposure pins the mean, so these
+        // tail fractions carry the real room-light variance.
+        crushedBlacksPct: Math.round(baseStats.crushedBlacksPct * 10) / 10,
+        clippedWhitesPct: Math.round(baseStats.clippedWhitesPct * 10) / 10,
         color: colorAnalysis.diagnosis
       },
       lighting: {

@@ -1047,7 +1047,15 @@ class BrightnessManager extends EventEmitter {
     const statsData = validWebcam ? webcamResult.stats : null;
 
     if (statsData && typeof statsData.exposure === 'number') {
-      webcamScore = this.#applyLogScale(statsData.exposure);
+      // Auto-exposure pins the frame MEAN near a setpoint regardless of room
+      // light, so the raw mean alone plateaus (identical scores for hours).
+      // Correct it with AE-invariant tail cues the worker already computes:
+      // many crushed blacks => darker than the mean suggests, many clipped
+      // whites => brighter. Both are in percent (0-100).
+      const crushed = typeof statsData.crushedBlacksPct === 'number' ? statsData.crushedBlacksPct : 0;
+      const clipped = typeof statsData.clippedWhitesPct === 'number' ? statsData.clippedWhitesPct : 0;
+      const effectiveExposure = statsData.exposure + clipped * 0.6 - crushed * 0.8;
+      webcamScore = this.#applyLogScale(Math.max(1, effectiveExposure));
     }
 
     if (faceData && faceData.detected) {
