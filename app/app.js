@@ -712,11 +712,15 @@ ipcMain.handle('about:download-update', async () => {
 ipcMain.handle('about:install-update', () => {
     if (!autoUpdater) return { success: false, error: 'updater-unavailable' };
     try {
-        // quitAndInstall throws when nothing was downloaded; catch it so the
-        // renderer can reset to the download step instead of hanging.
+        // Mark quitting BEFORE quitAndInstall: the main window's close handler
+        // hides-to-tray on any close where isQuitting is false, which aborts
+        // app.quit() inside quitAndInstall — the user then sees "nothing
+        // happen" (the pending install only ran later on a real manual quit).
+        app.isQuitting = true;
         autoUpdater.quitAndInstall(false, true);
         return { success: true };
     } catch (err) {
+        app.isQuitting = false;
         console.warn('quitAndInstall failed:', err && err.message);
         return { success: false, error: 'nothing-downloaded' };
     }
@@ -1061,6 +1065,11 @@ app.on('window-all-closed', (e) => {
 });
 
 app.on('before-quit', async (e) => {
+    // Skip the graceful-shutdown round-trip when an update install is in
+    // progress: the updater already called app.quit() after spawning the
+    // detached installer — delaying here can race the installer (which waits
+    // for this process to exit) and leaves the user staring at a hung app.
+    if (autoUpdater && autoUpdater.quitAndInstallCalled) return;
     if (!app.isQuitting && brightnessManager) {
         e.preventDefault();
         app.isQuitting = true;

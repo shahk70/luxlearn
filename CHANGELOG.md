@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.7] - 2026-09-07
+
+### Fixed
+- **"Restart & install" finally performs the install**: the installer launch
+  was aborted by the app's hide-to-tray close handler (quit never completed),
+  so the update only applied later on a manual quit — requiring a second
+  manual launch. The install path now marks the quit as final first, and the
+  shutdown round-trip no longer races the detached installer.
+
 ## [1.2.6] - 2026-09-07
 
 ### Fixed
