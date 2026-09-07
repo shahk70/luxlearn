@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.5] - 2026-09-07
+
+### Changed
+- **Battery influence reshaped to scarcity**: battery levels of 50% or more
+  all map to the same feature value, so everyday charge drift (100 → 80,
+  or sitting at any healthy charge) no longer shifts predictions. Only
+  genuinely low battery (below 50%) pulls the feature down, linearly to 0
+  at empty. Existing logs with raw percentages migrate automatically.
+
+### Fixed
+- **Webcam score variance** (from 1.2.4 investigation, now shipped): camera
+  auto-exposure pins the frame mean, which made the learned webcam signal
+  repeat identical values for hours. The signal now blends in AE-invariant
+  crushed-black/clipped-white tail fractions, so dark and bright rooms score
+  distinctly despite auto-exposure compensation.
+
 ## [1.2.4] - 2026-09-06
 
 ### Added

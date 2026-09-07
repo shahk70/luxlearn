@@ -49,6 +49,10 @@ const CONFIG = Object.freeze({
     SLOW_SIGNAL_INTERVAL_MS: 10 * 60 * 1000,
     POLL_INTERVAL_FLOOR_SEC: 3,
     OVERLOAD_CYCLE_RATIO: 0.6,
+    // Battery levels at/above this percent all map to scarcity 1.0, so normal
+    // charge drift (e.g. 100 -> 80) never influences predictions. Below it,
+    // the feature scales down linearly toward 0 as the battery empties.
+    BATTERY_SCARCITY_CEILING: 50,
   },
 });
 
@@ -93,12 +97,24 @@ for (const [key, def] of Object.entries(FEATURE_DEFINITIONS)) {
 }
 const ALL_FEATURES = [...NUMERIC_FEATURES, ...CATEGORICAL_FEATURES];
 
+// Battery percent -> scarcity factor used as the batteryLevel feature. Levels
+// at/above BATTERY_SCARCITY_CEILING all map to 1.0 so everyday charge drift
+// (100 -> 80 etc.) cannot move predictions; below the ceiling the feature
+// falls linearly to 0 as the battery empties.
+function batteryScarcity(percent) {
+  if (typeof percent !== 'number' || !Number.isFinite(percent)) return null;
+  return Math.min(1, Math.max(0, percent / CONFIG.ALGORITHM.BATTERY_SCARCITY_CEILING));
+}
+
 function setFeatureValue(state, key, value) {
   switch (key) {
     case 'webcam': state.webcamScore = value; return;
     case 'dayLight': if (state.timeFeatures) state.timeFeatures.dayLight = value; return;
     case 'timeSin': if (state.timeFeatures) state.timeFeatures.sin = value; return;
     case 'timeCos': if (state.timeFeatures) state.timeFeatures.cos = value; return;
+    case 'batteryLevel':
+      state.batteryLevel = batteryScarcity(value);
+      return;
     default: state[key] = value;
   }
 }
@@ -951,7 +967,10 @@ class BrightnessManager extends EventEmitter {
       visualConfidence: parse(entry.visualConfidence),
       app: entry.app ?? entry.currentWindow ?? null,
       powerSource: ['AC', 'battery', 'unknown'].includes(entry.powerSource) ? entry.powerSource : 'unknown',
-      batteryLevel: parse(entry.batteryLevel),
+      // Legacy logs store raw 0-100 percent; current logs store the scarcity
+      // factor (0-1). Values >1 are legacy percents, reshape them; values <=1
+      // are already scarcity.
+      batteryLevel: (rawBatteryLevel => rawBatteryLevel == null ? null : rawBatteryLevel > 1 ? batteryScarcity(rawBatteryLevel) : rawBatteryLevel)(parse(entry.batteryLevel)),
       nightLight: entry.nightLight === 'on' || entry.nightLight === 'off' ? entry.nightLight
         : (entry.nightLight === true ? 'on' : entry.nightLight === false ? 'off' : 'unknown'),
       timeFeatures: featuresExist ? entry.timeFeatures : this._getTimeFeatures(ts),
@@ -1106,7 +1125,7 @@ class BrightnessManager extends EventEmitter {
       ambientLightLuxRaw,
       ambientLightSource,
       powerSource: powerInfo && powerInfo.onBattery !== null ? (powerInfo.onBattery ? 'battery' : 'AC') : 'unknown',
-      batteryLevel: powerInfo?.batteryPercent ?? null,
+      batteryLevel: batteryScarcity(powerInfo?.batteryPercent ?? null),
       nightLight: nightLightOn === null || nightLightOn === undefined ? 'unknown' : (nightLightOn ? 'on' : 'off'),
       timeFeatures: this._getTimeFeatures(Date.now()),
     };
