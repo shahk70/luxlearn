@@ -710,10 +710,16 @@ ipcMain.handle('about:download-update', async () => {
     }
 });
 ipcMain.handle('about:install-update', () => {
-    if (!autoUpdater || !state.updateDownloaded) return { success: false, error: 'nothing-downloaded' };
-    app.isQuitting = true;
-    autoUpdater.quitAndInstall(false, true);
-    return { success: true };
+    if (!autoUpdater) return { success: false, error: 'updater-unavailable' };
+    try {
+        // quitAndInstall throws when nothing was downloaded; catch it so the
+        // renderer can reset to the download step instead of hanging.
+        autoUpdater.quitAndInstall(false, true);
+        return { success: true };
+    } catch (err) {
+        console.warn('quitAndInstall failed:', err && err.message);
+        return { success: false, error: 'nothing-downloaded' };
+    }
 });
 
 // --- Export / Import full user data ---

@@ -537,7 +537,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let pendingUpdate = null;
     let updateDownloading = false;
-    let updateReadyVersion = null;
+    let updateReady = false;
+
+    // electron-updater emits bare versions ("1.2.5") while the notify-only
+    // check prefixes "v" — compare and display normalized everywhere.
+    const normVersion = (v) => String(v ?? '').replace(/^v/i, '');
 
     function setUpdateButton(state) {
         const btn = elems.updateBannerUpdateBtn;
@@ -548,10 +552,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function showUpdateBanner(update) {
         if (!update || !elems.updateBanner) return;
+        update.version = normVersion(update.version);
         if (dismissedUpdateVersion === update.version) return;
 
         pendingUpdate = update;
-        if (updateReadyVersion === update.version) {
+        if (updateReady) {
             setText(elems.updateBannerText, t('update.readyDetail', { version: update.version }));
             setUpdateButton({ disabled: false, key: 'update.restartNow' });
         } else {
@@ -567,8 +572,14 @@ window.addEventListener('DOMContentLoaded', () => {
         };
         if (elems.updateBannerUpdateBtn) {
             elems.updateBannerUpdateBtn.onclick = async () => {
-                if (updateReadyVersion === update.version) {
-                    await window.api.installUpdate?.();
+                if (updateReady) {
+                    const result = await window.api.installUpdate?.();
+                    if (result && result.success === false && result.error === 'nothing-downloaded') {
+                        // State lost (main restarted, etc.) — reset to download flow.
+                        updateReady = false;
+                        setUpdateButton({ disabled: false, key: 'update.installNow' });
+                        setText(elems.updateBannerText, t('update.availableDetail', { version: update.version }));
+                    }
                     return;
                 }
                 updateDownloading = true;
@@ -592,11 +603,9 @@ window.addEventListener('DOMContentLoaded', () => {
         });
         window.api.onUpdateDownloaded?.(({ version }) => {
             updateDownloading = false;
-            updateReadyVersion = version;
-            if (pendingUpdate && pendingUpdate.version.replace(/^v/, '') === String(version).replace(/^v/, '')) {
-                pendingUpdate.version = `v${String(version).replace(/^v/, '')}`;
-            }
-            setText(elems.updateBannerText, t('update.readyDetail', { version: `v${String(version).replace(/^v/, '')}` }));
+            updateReady = true;
+            const v = normVersion(version ?? pendingUpdate?.version);
+            setText(elems.updateBannerText, t('update.readyDetail', { version: v }));
             setUpdateButton({ disabled: false, key: 'update.restartNow' });
         });
     }

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.6] - 2026-09-07
+
+### Fixed
+- **"Restart & install" did nothing**: the banner tracked the downloaded
+  update under a differently-formatted version string ("v1.2.5" vs "1.2.5"),
+  so the click never reached the install step. Versions are now normalized
+  everywhere, and a failed install attempt resets the banner to the download
+  step instead of hanging.
+- **Update metadata missing from releases** (fixed during 1.2.5 but worth
+  noting): releases now publish `latest.yml` and `.blockmap`, which
+  electron-updater needs to download installers.
+
 ## [1.2.5] - 2026-09-07
 
 ### Changed
