@@ -59,12 +59,6 @@ function faceLuxEstimate(faceBrightness) {
   return Math.round(100 * Math.pow(clamped / 78, 2.3));
 }
 
-function gridLuxEstimate(gridMedian) {
-  if (!Number.isFinite(gridMedian)) return null;
-  const clamped = Math.min(255, Math.max(1, gridMedian));
-  return Math.round(100 * Math.pow(clamped / 52, 1.6));
-}
-
 const FEATURE_DEFINITIONS = {
   webcam: { accessor: (s) => s?.webcamScore, type: 'numeric' },
   screen: { accessor: (s) => s?.screen, type: 'numeric' },
@@ -1024,15 +1018,22 @@ class BrightnessManager extends EventEmitter {
     const validWebcam = webcamResult && !webcamResult.error;
 
     let ambientLightSource = ambientLightLuxRaw !== null && ambientLightLuxRaw !== undefined ? 'sensor' : 'none';
-    const gridMedianForLux = validWebcam && webcamResult?.stats && typeof webcamResult.stats.gridMedian === 'number'
-      ? webcamResult.stats.gridMedian
-      : null;
+    const faceDetected = validWebcam && webcamResult?.faces && webcamResult.faces.detected === true;
     const faceMeanForLux = validWebcam && webcamResult?.faces && typeof webcamResult.faces.faceBrightness === 'number'
       ? webcamResult.faces.faceBrightness
-      : (validWebcam && webcamResult?.stats && typeof webcamResult.stats.exposure === 'number' ? webcamResult.stats.exposure : null);
-    if (ambientLightLuxRaw == null && (gridMedianForLux !== null || faceMeanForLux !== null)) {
-      ambientLightLuxRaw = gridLuxEstimate(gridMedianForLux) ?? faceLuxEstimate(faceMeanForLux);
-      if (ambientLightLuxRaw !== null) ambientLightSource = 'webcam';
+      : null;
+    const statsData = validWebcam ? webcamResult.stats : null;
+    const effectiveExposure = (statsData && typeof statsData.exposure === 'number')
+      ? statsData.exposure
+        + (typeof statsData.clippedWhitesPct === 'number' ? statsData.clippedWhitesPct : 0) * 0.6
+        - (typeof statsData.crushedBlacksPct === 'number' ? statsData.crushedBlacksPct : 0) * 0.8
+      : null;
+    if (ambientLightLuxRaw == null) {
+      const roomSignal = faceDetected && faceMeanForLux !== null ? faceMeanForLux : effectiveExposure;
+      if (Number.isFinite(roomSignal)) {
+        ambientLightLuxRaw = faceLuxEstimate(Math.max(20, Math.min(160, roomSignal)));
+        if (ambientLightLuxRaw !== null) ambientLightSource = 'webcam';
+      }
     }
     if (readSlowSignals) {
       this.#cachedPowerInfo = powerInfo;
@@ -1057,13 +1058,11 @@ class BrightnessManager extends EventEmitter {
 
     let faceData = validWebcam ? webcamResult.faces : null;
     const lightingData = validWebcam ? webcamResult.lighting : null;
-    const statsData = validWebcam ? webcamResult.stats : null;
 
     if (statsData && typeof statsData.exposure === 'number') {
       const crushed = typeof statsData.crushedBlacksPct === 'number' ? statsData.crushedBlacksPct : 0;
       const clipped = typeof statsData.clippedWhitesPct === 'number' ? statsData.clippedWhitesPct : 0;
-      const effectiveExposure = statsData.exposure + clipped * 0.6 - crushed * 0.8;
-      webcamScore = this.#applyLogScale(Math.max(1, effectiveExposure));
+      webcamScore = this.#applyLogScale(Math.max(1, statsData.exposure + clipped * 0.6 - crushed * 0.8));
     }
 
     if (faceData && faceData.detected) {

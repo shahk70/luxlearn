@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.2] - 2026-09-09
+
+### Fixed
+- **Webcam room-light estimate now accounts for whether you're in frame**:
+  when you're visible, the camera exposes for your face and the room-light
+  estimate comes from the face reading; when you step away, the camera
+  re-meters the whole scene, so the estimate switches to the full-frame
+  exposure reading (with the value clamped into the range the estimate was
+  calibrated for). Live-tested: in-frame estimates stay in a tight band
+  while out-of-frame monitor-in-view scenes no longer drag them around.
+
 ## [1.3.1] - 2026-09-09
 
 ### Changed
