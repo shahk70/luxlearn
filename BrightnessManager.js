@@ -946,6 +946,7 @@ class BrightnessManager extends EventEmitter {
       ambientLight: ambientLightVal,
       ambientLightLuxRaw: parse(entry.ambientLightLuxRaw),
       ambientLightSource: ['sensor', 'webcam', 'none'].includes(entry.ambientLightSource) ? entry.ambientLightSource : 'none',
+      ambientLightDetail: typeof entry.ambientLightDetail === 'string' ? entry.ambientLightDetail : null,
       faceCount: parse(entry.faceCount) ?? 0,
       faceBrightness: parse(entry.faceBrightness),
       faceProximity: parse(entry.faceProximity) ?? 0,
@@ -1018,6 +1019,7 @@ class BrightnessManager extends EventEmitter {
     const validWebcam = webcamResult && !webcamResult.error;
 
     let ambientLightSource = ambientLightLuxRaw !== null && ambientLightLuxRaw !== undefined ? 'sensor' : 'none';
+    let ambientLightDetail = null;
     const faceDetected = validWebcam && webcamResult?.faces && webcamResult.faces.detected === true;
     const faceMeanForLux = validWebcam && webcamResult?.faces && typeof webcamResult.faces.faceBrightness === 'number'
       ? webcamResult.faces.faceBrightness
@@ -1029,11 +1031,14 @@ class BrightnessManager extends EventEmitter {
         - (typeof statsData.crushedBlacksPct === 'number' ? statsData.crushedBlacksPct : 0) * 0.8
       : null;
     if (ambientLightLuxRaw == null) {
-      const roomSignal = faceDetected && faceMeanForLux !== null ? faceMeanForLux : effectiveExposure;
-      if (Number.isFinite(roomSignal)) {
-        ambientLightLuxRaw = faceLuxEstimate(Math.max(20, Math.min(160, roomSignal)));
-        if (ambientLightLuxRaw !== null) ambientLightSource = 'webcam';
+      if (faceDetected && faceMeanForLux !== null) {
+        ambientLightLuxRaw = faceLuxEstimate(Math.max(20, Math.min(160, faceMeanForLux)));
+        ambientLightDetail = 'face';
+      } else if (Number.isFinite(effectiveExposure)) {
+        ambientLightLuxRaw = faceLuxEstimate(Math.max(20, Math.min(160, effectiveExposure)));
+        ambientLightDetail = 'scene';
       }
+      if (ambientLightLuxRaw !== null) ambientLightSource = 'webcam';
     }
     if (readSlowSignals) {
       this.#cachedPowerInfo = powerInfo;
@@ -1112,6 +1117,7 @@ class BrightnessManager extends EventEmitter {
       faceCenterDeviation,
       lightSourceCount: lightingData?.sourceCount ?? null,
       lightDirection: lightingData?.direction ?? null,
+      lightDirectionDetail: lightingData?.directionDetail ?? null,
       visualConfidence,
       screen: screenVal,
       app,
@@ -1119,6 +1125,7 @@ class BrightnessManager extends EventEmitter {
       ambientLight: ambientLightVal,
       ambientLightLuxRaw,
       ambientLightSource,
+      ambientLightDetail,
       powerSource: powerInfo && powerInfo.onBattery !== null ? (powerInfo.onBattery ? 'battery' : 'AC') : 'unknown',
       batteryLevel: batteryScarcity(powerInfo?.batteryPercent ?? null),
       nightLight: nightLightOn === null || nightLightOn === undefined ? 'unknown' : (nightLightOn ? 'on' : 'off'),
@@ -1741,7 +1748,7 @@ class BrightnessManager extends EventEmitter {
       const s = v == null ? '' : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const keys = ['timestamp', 'brightness', 'type', 'webcamScore', 'screen', 'cloud', 'ambientLight', 'ambientLightLuxRaw', 'ambientLightSource', 'faceCount', 'faceBrightness', 'faceProximity', 'faceCenterDeviation', 'lightSourceCount', 'lightDirection', 'visualConfidence', 'app', 'powerSource', 'batteryLevel', 'nightLight'];
+    const keys = ['timestamp', 'brightness', 'type', 'webcamScore', 'screen', 'cloud', 'ambientLight', 'ambientLightLuxRaw', 'ambientLightSource', 'ambientLightDetail', 'faceCount', 'faceBrightness', 'faceProximity', 'faceCenterDeviation', 'lightSourceCount', 'lightDirection', 'visualConfidence', 'app', 'powerSource', 'batteryLevel', 'nightLight'];
     const lines = [keys.join(',')];
     for (const log of this.logs) {
       const row = keys.map((k) => {

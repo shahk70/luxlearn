@@ -274,42 +274,33 @@ function analyzeLightingOpencv(grayMat, stats) {
       }
     }
 
-    const halfW = Math.floor(width / 2);
-    const halfH = Math.floor(height / 2);
-    const top = new cv.Mat();
-    const bottom = new cv.Mat();
-    const left = new cv.Mat();
-    const right = new cv.Mat();
-    let sumTop = 0, sumBottom = 0, sumLeft = 0, sumRight = 0;
-    try {
-      grayMat.rowRange(0, halfH).copyTo(top);
-      grayMat.rowRange(halfH, height).copyTo(bottom);
-      grayMat.colRange(0, halfW).copyTo(left);
-      grayMat.colRange(halfW, width).copyTo(right);
-      sumTop = cv.mean(top)[0] * top.rows * top.cols;
-      sumBottom = cv.mean(bottom)[0] * bottom.rows * bottom.cols;
-      sumLeft = cv.mean(left)[0] * left.rows * left.cols;
-      sumRight = cv.mean(right)[0] * right.rows * right.cols;
-    } finally {
-      top.delete(); bottom.delete(); left.delete(); right.delete();
-    }
-
     let direction = 'Front/Balanced';
-    const verticalDiff = sumTop - sumBottom;
-    const horizontalDiff = sumLeft - sumRight;
-    const total = sumTop + sumBottom + 1;
-    const vertRatio = Math.abs(verticalDiff) / total;
-    const horizRatio = Math.abs(horizontalDiff) / total;
-
-    if (Math.max(vertRatio, horizRatio) < 0.06) {
-      direction = 'Front/Balanced';
-    } else if (vertRatio >= horizRatio) {
-      direction = verticalDiff > 0 ? 'Top' : 'Bottom';
-    } else {
-      direction = horizontalDiff > 0 ? 'Left' : 'Right';
+    let directionDetail = null;
+    if (blobs.length > 0) {
+      let areaTotal = 0;
+      let cxSum = 0, cySum = 0;
+      for (const b of blobs) {
+        const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+        cxSum += cx * b.area;
+        cySum += cy * b.area;
+        areaTotal += b.area;
+      }
+      const relX = cxSum / areaTotal / width;
+      const relY = cySum / areaTotal / height;
+      const dx = Math.abs(relX - 0.5);
+      const dy = Math.abs(relY - 0.5);
+      if (dx < 0.08 && dy < 0.08) {
+        direction = 'Front/Balanced';
+      } else if (dx >= dy) {
+        direction = relX < 0.5 ? 'Left' : 'Right';
+        directionDetail = { axis: 'horizontal', offset: Math.round(dx * 200) / 100 };
+      } else {
+        direction = relY < 0.5 ? 'Top' : 'Bottom';
+        directionDetail = { axis: 'vertical', offset: Math.round(dy * 200) / 100 };
+      }
     }
 
-    return { count: blobs.length, direction, sources: blobs };
+    return { count: blobs.length, direction, directionDetail, sources: blobs };
 
   } finally {
     threshMat.delete();
@@ -492,6 +483,7 @@ function analyzeFrame({ buffer, width, height, detectFaces }) {
       },
       lighting: {
         direction: lighting.direction,
+        directionDetail: lighting.directionDetail,
         sourceCount: lighting.count
       },
       faces: {

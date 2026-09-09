@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.3] - 2026-09-09
+
+### Fixed
+- **Light direction finally points at the light**: the old math compared the
+  brightness of whole frame halves, so even an obvious window blob read as
+  "Top" most of the time. The direction now comes from where the actual
+  bright regions sit in the frame (verified on controlled test images: top,
+  left, right, bottom and centered blobs all report correctly), with a
+  strength value so weak/imprecise readings can be told apart from strong
+  ones.
+- **Clearer "where did this reading come from" data**: the room-light value
+  now records whether it was read from your face or from the whole scene,
+  making logs and troubleshooting easier to interpret.
+
 ## [1.3.2] - 2026-09-09
 
 ### Fixed
