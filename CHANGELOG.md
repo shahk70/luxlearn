@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.2.8] - 2026-09-09
+
+### Fixed
+- **Webcam frames tinted cold/blue**: `bmp-js` 0.1.0 decodes 24-bit BMPs as
+  `[0, B, G, R]` per pixel (misread as 32-bit ABGR), so the zero byte landed
+  in the blue channel of the analysis Mat — frames read "Too Cold/Blue" and
+  one channel was effectively dead. The worker now reorders to proper RGBA
+  with alpha=255 before analysis.
+- **`clippedWhitesPct` was a dead cue**: the clip threshold sat at 250, but
+  this sensor's histogram tops out at ~224-233 (p99) even with the monitor
+  in frame. Recalibrated to 230 so real highlight content registers.
+- **Webcam-as-lux fallback ignored faces**: when no ambient-light sensor is
+  available, the webcam now estimates room light from the face-patch mean
+  instead of the frame mean — auto-exposure pins the global mean flat
+  (identical values for hours across a 4x light swing) while face means
+  tracked 46-84 over the same conditions. Falls back to the global mean
+  when no face is in frame.
+
+### Added
+- **p50 / p90 / p95 webcam stats** exported as AE-invariant light
+  diagnostics (visible in webcam logs) — auto-exposure keeps the mean
+  pinned, so the histogram median and bright-tail percentiles carry the
+  real room-light variance.
+
+### Verified
+- A same-frame audit (one BMP fed to both the analysis worker and an
+  independent sharp+JS reference) confirms every exported camera signal:
+  exposure/face ROI mean, face brightness, percentiles, clip/crush %,
+  noise, color diagnosis, light direction, and light-source count all
+  match the reference on the identical buffer.
+
 ## [1.2.7] - 2026-09-07
 
 ### Fixed

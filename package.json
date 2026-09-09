@@ -1,6 +1,6 @@
 {
   "name": "luxlearn",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "LuxLearn — your screen learns the light around you. A cross-platform Electron app that blends ambient light, webcam, screen content and time of day into brightness that feels natural.",
   "license": "UNLICENSED",
   "author": {
