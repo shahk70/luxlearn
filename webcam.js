@@ -97,7 +97,7 @@ function buildCandidateList() {
         {
           id: 'imagesnap',
           bin: 'imagesnap',
-          ext: 'jpg',
+          ext: 'png',
           args: (outFile, delayMs, device) => [
             ...(device ? ['-d', device] : []), '-w', String(delayMs / 1000), outFile,
           ],
@@ -122,9 +122,9 @@ function buildCandidateList() {
         {
           id: 'fswebcam',
           bin: 'fswebcam',
-          ext: 'jpg',
+          ext: 'png',
           args: (outFile, delayMs, device) => [
-            ...(device ? ['-d', device] : []), '-D', String(delayMs / 1000), '-q', '--no-banner', outFile,
+            ...(device ? ['-d', device] : []), '-D', String(delayMs / 1000), '-q', '--no-banner', '--png', '0', outFile,
           ],
           listCameras: () => v4l2ListDevices(),
         },

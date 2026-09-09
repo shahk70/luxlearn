@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const cv = require('@techstark/opencv-js');
 const bmp = require('bmp-js');
+const sharp = require('sharp');
 
 const THRESHOLDS = {
   WHITE_CLIP: 230,
@@ -104,13 +105,28 @@ function getBoundMats(grayMat) {
   return entry;
 }
 
+let linearLut = null;
+
+function getLinearLut() {
+  if (linearLut) return linearLut;
+  const lut = new cv.Mat(1, 256, cv.CV_8UC1);
+  for (let i = 0; i < 256; i++) {
+    const s = i / 255;
+    const lin = s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    lut.data[i] = Math.round(lin * 255);
+  }
+  linearLut = lut;
+  return lut;
+}
+
 function analyzeBasicStatsOpencv(grayMat) {
   const totalPixels = grayMat.rows * grayMat.cols;
-  if (totalPixels === 0) return { mean: 0, stdDev: 0, crushedBlacksPct: 0, clippedWhitesPct: 0, p50: 0, p90: 0, p95: 0 };
+  if (totalPixels === 0) return { mean: 0, stdDev: 0, crushedBlacksPct: 0, clippedWhitesPct: 0, p50: 0, p90: 0, p95: 0, linMean: 0, gridMedian: 0, gridSpread: 0, colorTemp: null };
 
   const meanMat = new cv.Mat();
   const stdDevMat = new cv.Mat();
   const mask = new cv.Mat();
+  const linMat = new cv.Mat();
   const { lowerBound, zeroBound, clipBound, maxBound } = getBoundMats(grayMat);
 
   try {
@@ -143,6 +159,23 @@ function analyzeBasicStatsOpencv(grayMat) {
       return 255;
     };
 
+    cv.LUT(grayMat, getLinearLut(), linMat);
+    const linMean = cv.mean(linMat)[0];
+
+    const gw = 8, gh = 6;
+    const cw = Math.floor(grayMat.cols / gw), chh = Math.floor(grayMat.rows / gh);
+    const cellMeans = [];
+    for (let gy = 0; gy < gh; gy++) {
+      for (let gx = 0; gx < gw; gx++) {
+        const cell = linMat.roi({ x: gx * cw, y: gy * chh, width: cw, height: chh });
+        cellMeans.push(cv.mean(cell)[0]);
+        cell.delete();
+      }
+    }
+    cellMeans.sort((a, b) => a - b);
+    const gridMedian = cellMeans[Math.floor(cellMeans.length / 2)];
+    const gridSpread = cellMeans[cellMeans.length - 1] - cellMeans[0];
+
     return {
       mean,
       stdDev,
@@ -150,13 +183,18 @@ function analyzeBasicStatsOpencv(grayMat) {
       clippedWhitesPct: (clippedCount / totalPixels) * 100,
       p50: quantile(0.5),
       p90: quantile(0.9),
-      p95: quantile(0.95)
+      p95: quantile(0.95),
+      linMean: Math.round(linMean * 10) / 10,
+      gridMedian: Math.round(gridMedian * 10) / 10,
+      gridSpread: Math.round(gridSpread * 10) / 10,
+      colorTemp: null
     };
 
   } finally {
     meanMat.delete();
     stdDevMat.delete();
     mask.delete();
+    linMat.delete();
   }
 }
 
@@ -447,6 +485,9 @@ function analyzeFrame({ buffer, width, height, detectFaces }) {
         p50: baseStats.p50,
         p90: baseStats.p90,
         p95: baseStats.p95,
+        linMean: baseStats.linMean,
+        gridMedian: baseStats.gridMedian,
+        gridSpread: baseStats.gridSpread,
         color: colorAnalysis.diagnosis
       },
       lighting: {
@@ -469,6 +510,25 @@ function analyzeFrame({ buffer, width, height, detectFaces }) {
   }
 }
 
+function decodeBmpToRgba(imageBuffer) {
+  const decoded = bmp.decode(Buffer.from(imageBuffer));
+  const { width, height } = decoded;
+  const src = decoded.data;
+  const rgba = new Uint8ClampedArray(width * height * 4);
+  for (let i = 0; i < rgba.length; i += 4) {
+    rgba[i] = src[i + 3];
+    rgba[i + 1] = src[i + 2];
+    rgba[i + 2] = src[i + 1];
+    rgba[i + 3] = 255;
+  }
+  return { buffer: rgba, width, height };
+}
+
+async function decodeLossyToRgba(imageBuffer) {
+  const { data, info } = await sharp(Buffer.from(imageBuffer)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  return { buffer: new Uint8ClampedArray(data.buffer, data.byteOffset, data.byteLength), width: info.width, height: info.height };
+}
+
 parentPort.on('message', async (msg) => {
   const { id, raw, bmpBuffer, detectFaces } = msg;
   try {
@@ -476,18 +536,12 @@ parentPort.on('message', async (msg) => {
     let buffer = raw;
     let width, height;
     if (bmpBuffer) {
-      const decoded = bmp.decode(Buffer.from(bmpBuffer));
+      const buf = Buffer.from(bmpBuffer);
+      const isBmp = buf.length > 2 && buf[0] === 0x42 && buf[1] === 0x4D;
+      const decoded = isBmp ? decodeBmpToRgba(buf) : await decodeLossyToRgba(buf);
+      buffer = decoded.buffer;
       width = decoded.width;
       height = decoded.height;
-      const src = decoded.data;
-      const rgba = new Uint8ClampedArray(width * height * 4);
-      for (let i = 0; i < rgba.length; i += 4) {
-        rgba[i] = src[i + 3];
-        rgba[i + 1] = src[i + 2];
-        rgba[i + 2] = src[i + 1];
-        rgba[i + 3] = 255;
-      }
-      buffer = rgba;
     } else {
       width = msg.width;
       height = msg.height;

@@ -59,6 +59,12 @@ function faceLuxEstimate(faceBrightness) {
   return Math.round(100 * Math.pow(clamped / 78, 2.3));
 }
 
+function gridLuxEstimate(gridMedian) {
+  if (!Number.isFinite(gridMedian)) return null;
+  const clamped = Math.min(255, Math.max(1, gridMedian));
+  return Math.round(100 * Math.pow(clamped / 52, 1.6));
+}
+
 const FEATURE_DEFINITIONS = {
   webcam: { accessor: (s) => s?.webcamScore, type: 'numeric' },
   screen: { accessor: (s) => s?.screen, type: 'numeric' },
@@ -1018,11 +1024,14 @@ class BrightnessManager extends EventEmitter {
     const validWebcam = webcamResult && !webcamResult.error;
 
     let ambientLightSource = ambientLightLuxRaw !== null && ambientLightLuxRaw !== undefined ? 'sensor' : 'none';
+    const gridMedianForLux = validWebcam && webcamResult?.stats && typeof webcamResult.stats.gridMedian === 'number'
+      ? webcamResult.stats.gridMedian
+      : null;
     const faceMeanForLux = validWebcam && webcamResult?.faces && typeof webcamResult.faces.faceBrightness === 'number'
       ? webcamResult.faces.faceBrightness
       : (validWebcam && webcamResult?.stats && typeof webcamResult.stats.exposure === 'number' ? webcamResult.stats.exposure : null);
-    if (ambientLightLuxRaw == null && faceMeanForLux !== null) {
-      ambientLightLuxRaw = faceLuxEstimate(faceMeanForLux);
+    if (ambientLightLuxRaw == null && (gridMedianForLux !== null || faceMeanForLux !== null)) {
+      ambientLightLuxRaw = gridLuxEstimate(gridMedianForLux) ?? faceLuxEstimate(faceMeanForLux);
       if (ambientLightLuxRaw !== null) ambientLightSource = 'webcam';
     }
     if (readSlowSignals) {

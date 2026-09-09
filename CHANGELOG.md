@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.1] - 2026-09-09
+
+### Changed
+- **Smarter ambient-light reading from the camera**: pixels are now converted
+  to linear light before averaging (previously the camera's gamma-compressed
+  values were averaged directly, understating how much the room actually
+  changed), and the room-light estimate now uses the median of an 8×6 grid
+  over the frame — a bright lamp or a dark corner in view no longer drags
+  the reading away from the light you actually work in.
+- **More robust captures on macOS/Linux**: the native capture tools now
+  save lossless PNG instead of JPEG, and the analysis worker accepts any
+  image format the capture backends can produce (BMP, PNG, JPEG), so a
+  format mismatch can no longer break webcam readings.
+
 ## [1.3.0] - 2026-09-09
 
 ### Changed
