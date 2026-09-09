@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.9] - 2026-09-09
+
+### Fixed
+- **Webcam barely reacted to real light changes**: three separate problems
+  stacked up. (1) When a lamp or poster triggered a second "face" detection,
+  all detections were averaged together — a bright lamp dragged the face
+  reading down and could invert the dim-vs-bright ordering. The face signal
+  now comes from the center-most detection (the user sits in front of the
+  laptop). (2) Without an ambient-light sensor, room light was estimated
+  with a flat log curve that mapped the camera's compressed readings onto an
+  even narrower band; it now applies an inverted-gamma correction that
+  recovers real light ratios (verified ~4x across a 4x lighting change,
+  versus ~1.2x before). (3) The frame-quality confidence score was buried
+  under camera sensor noise and read ~30 in every scene; it now uses the
+  worker's quality score, which tracked 33 (dim) → 58 (room light) → 81
+  (bright) in live testing.
+
 ## [1.2.8] - 2026-09-09
 
 ### Fixed
