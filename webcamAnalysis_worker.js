@@ -300,38 +300,48 @@ function detectFacesOnMat(grayMat) {
 
     classifier.detectMultiScale(grayMat, facesRects, 1.1, 5, 0, new cv.Size(30, 30));
 
-    const resultFaces = [];
-    let faceRegionMean = null;
-    let accumulatedMean = 0;
-    let countWithMean = 0;
-
+    const infos = [];
     for (let i = 0; i < facesRects.size(); ++i) {
       const f = facesRects.get(i);
-
       const roi = grayMat.roi(f);
-      const mean = cv.mean(roi);
-      accumulatedMean += mean[0];
-      countWithMean++;
+      const mean = cv.mean(roi)[0];
       roi.delete();
+      infos.push({ x: f.x, y: f.y, width: f.width, height: f.height, mean });
+    }
 
-      const centerX = f.x + f.width / 2;
+    // Primary face = center-most detection. Haar also fires on lamps and
+    // posters; averaging every box let a bright lamp drag the face mean
+    // (live: it pulled the bright-condition face mean from ~146 to ~106,
+    // inverting the dim->bright ordering). The user sits centered in front
+    // of the laptop, so center proximity is the most stable plausibility
+    // signal available.
+    let primary = null;
+    let bestScore = Infinity;
+    for (const info of infos) {
+      const cx = info.x + info.width / 2;
+      const cy = info.y + info.height / 2;
+      const score = Math.hypot(
+        (cx - grayMat.cols / 2) / grayMat.cols,
+        (cy - grayMat.rows / 2) / grayMat.rows
+      );
+      if (score < bestScore) { bestScore = score; primary = info; }
+    }
+
+    const ordered = primary ? [primary, ...infos.filter((f) => f !== primary)] : [];
+    const resultFaces = ordered.map((info) => {
+      const centerX = info.x + info.width / 2;
       const relX = centerX / grayMat.cols;
       let loc = 'Center';
       if (relX < 0.33) loc = 'Left';
       else if (relX > 0.66) loc = 'Right';
-
-      resultFaces.push({ x: f.x, y: f.y, width: f.width, height: f.height, location: loc });
-    }
-
-    if (countWithMean > 0) {
-      faceRegionMean = accumulatedMean / countWithMean;
-    }
+      return { x: info.x, y: info.y, width: info.width, height: info.height, location: loc };
+    });
 
     return {
       detected: resultFaces.length > 0,
       count: resultFaces.length,
       faces: resultFaces,
-      faceExposure: faceRegionMean
+      faceExposure: primary ? primary.mean : null
     };
 
   } catch (err) {

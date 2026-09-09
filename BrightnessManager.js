@@ -68,11 +68,15 @@ function webcamLuxEstimate(exposure) {
 }
 
 // Face mean (0-255) -> rough lux estimate for the webcam-as-lux fallback.
-// The face patch tracks ambient light through clothing/scene reflections
-// better than any single global stat (live-verified: global means were
-// identical at 130 across a 4x light swing while face means spanned 46-84).
+// Inverted-gamma mapping: the camera's ~0.45 gamma plus auto-exposure
+// compression understates light ratios badly (live: a 4x room-light swing
+// moved face means only 46->84, 1.8x). Raising to 2.3 recovers an
+// approximately linear light ratio, anchored at 78 ~= 100 lux (a normally
+// lit living room). Ordinal proxy, not a calibrated reading.
 function faceLuxEstimate(faceBrightness) {
-  return webcamLuxEstimate(faceBrightness);
+  if (!Number.isFinite(faceBrightness)) return null;
+  const clamped = Math.min(255, Math.max(1, faceBrightness));
+  return Math.round(100 * Math.pow(clamped / 78, 2.3));
 }
 
 const FEATURE_DEFINITIONS = {
@@ -1117,11 +1121,15 @@ class BrightnessManager extends EventEmitter {
     }
 
     let visualConfidence = null;
-    if (validWebcam && statsData) {
+    if (validWebcam && typeof webcamResult.score === 'number') {
+      // Worker quality score is face-aware and monotonic across the live
+      // ladder (dim ~33 < room ~58 < bright ~81). The old
+      // exposure-minus-noise formula sat at ~30 in every scene because
+      // sensor noise (~75) always dominated it.
+      visualConfidence = webcamResult.score;
+    } else if (validWebcam && statsData) {
       const { exposure, noise, sharpness } = statsData;
       visualConfidence = Math.max(0, exposure - noise + Math.round(sharpness / 20));
-    } else if (validWebcam) {
-      visualConfidence = webcamResult.score;
     }
 
     return {
