@@ -7,7 +7,11 @@ const cv = require('@techstark/opencv-js');
 const bmp = require('bmp-js');
 
 const THRESHOLDS = {
-  WHITE_CLIP: 250,
+  // Calibrated 2026-09-08 from a 12-frame live probe session: no pixel on
+  // this sensor ever exceeded 250 (p99 sat at 224-233 even with the monitor
+  // in frame), so 250 made clippedWhitesPct a dead cue. 230 fires on real
+  // highlight content without noise.
+  WHITE_CLIP: 230,
   BLACK_CRUSH: 5,
   NOISE_HIGH: 50.0,
   BLUR_VARIANCE_LOW: 100.0,
@@ -106,7 +110,7 @@ function getBoundMats(grayMat) {
 
 function analyzeBasicStatsOpencv(grayMat) {
   const totalPixels = grayMat.rows * grayMat.cols;
-  if (totalPixels === 0) return { mean: 0, stdDev: 0, crushedBlacksPct: 0, clippedWhitesPct: 0 };
+  if (totalPixels === 0) return { mean: 0, stdDev: 0, crushedBlacksPct: 0, clippedWhitesPct: 0, p50: 0, p90: 0, p95: 0 };
 
   const meanMat = new cv.Mat();
   const stdDevMat = new cv.Mat();
@@ -124,11 +128,37 @@ function analyzeBasicStatsOpencv(grayMat) {
     cv.inRange(grayMat, clipBound, maxBound, mask);
     const clippedCount = cv.countNonZero(mask);
 
+    // AE-invariant room-light cues: auto-exposure pins the mean and stretches
+    // the bulk of the histogram, but the median follows the scene's dominant
+    // surface while p90/p95 track the brightest content. Both survive gain
+    // changes that flatten the mean (verified in a live 4-condition session).
+    const hist = new Array(256).fill(0);
+    const step = Math.max(1, Math.floor(totalPixels / 20000));
+    let sampled = 0;
+    for (let y = 0; y < grayMat.rows; y += step) {
+      for (let x = 0; x < grayMat.cols; x += step) {
+        hist[grayMat.ucharAt(y, x)]++;
+        sampled++;
+      }
+    }
+    const quantile = (q) => {
+      const target = sampled * q;
+      let acc = 0;
+      for (let v = 0; v < 256; v++) {
+        acc += hist[v];
+        if (acc >= target) return v;
+      }
+      return 255;
+    };
+
     return {
       mean,
       stdDev,
       crushedBlacksPct: (crushedCount / totalPixels) * 100,
-      clippedWhitesPct: (clippedCount / totalPixels) * 100
+      clippedWhitesPct: (clippedCount / totalPixels) * 100,
+      p50: quantile(0.5),
+      p90: quantile(0.9),
+      p95: quantile(0.95)
     };
 
   } finally {
@@ -428,6 +458,9 @@ function analyzeFrame({ buffer, width, height, faceDetectWidth, analysisWidth, a
         // tail fractions carry the real room-light variance.
         crushedBlacksPct: Math.round(baseStats.crushedBlacksPct * 10) / 10,
         clippedWhitesPct: Math.round(baseStats.clippedWhitesPct * 10) / 10,
+        p50: baseStats.p50,
+        p90: baseStats.p90,
+        p95: baseStats.p95,
         color: colorAnalysis.diagnosis
       },
       lighting: {
@@ -460,8 +493,19 @@ parentPort.on('message', async (msg) => {
       const decoded = bmp.decode(Buffer.from(bmpBuffer));
       width = decoded.width;
       height = decoded.height;
+      // bmp-js 0.1.0 decodes 24bpp BMPs as [0, B, G, R] per pixel (misread as
+      // 32-bit ABGR). Reorder to RGBA and set alpha=255 or the zero byte lands
+      // in the blue channel of the CV_8UC4 Mat and tints the whole frame.
+      const src = decoded.data;
+      const rgba = new Uint8ClampedArray(width * height * 4);
+      for (let i = 0; i < rgba.length; i += 4) {
+        rgba[i] = src[i + 3];
+        rgba[i + 1] = src[i + 2];
+        rgba[i + 2] = src[i + 1];
+        rgba[i + 3] = 255;
+      }
       const srcMat = new cv.Mat(height, width, cv.CV_8UC4);
-      srcMat.data.set(decoded.data);
+      srcMat.data.set(rgba);
       const faceW = Math.min(width, faceDetectWidth || width);
       const scale = faceW / width;
       const dstW = faceW;

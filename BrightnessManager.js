@@ -67,6 +67,14 @@ function webcamLuxEstimate(exposure) {
   return Math.round(3 * Math.exp((clamped / 255) * Math.log(2000 / 3)));
 }
 
+// Face mean (0-255) -> rough lux estimate for the webcam-as-lux fallback.
+// The face patch tracks ambient light through clothing/scene reflections
+// better than any single global stat (live-verified: global means were
+// identical at 130 across a 4x light swing while face means spanned 46-84).
+function faceLuxEstimate(faceBrightness) {
+  return webcamLuxEstimate(faceBrightness);
+}
+
 const FEATURE_DEFINITIONS = {
   webcam: { accessor: (s) => s?.webcamScore, type: 'numeric' },
   screen: { accessor: (s) => s?.screen, type: 'numeric' },
@@ -1033,11 +1041,15 @@ class BrightnessManager extends EventEmitter {
     const validWebcam = webcamResult && !webcamResult.error;
 
     // Webcam-as-lux fallback: when no dedicated ALS is readable, the camera
-    // exposure mean is a rough ambient proxy (already computed for the webcam
-    // signal, so this costs nothing extra). Only used when ALS reads null.
+    // face-patch mean is a rough ambient proxy (already computed for the
+    // webcam signal, so this costs nothing extra). Only used when ALS reads
+    // null. Falls back to the global mean when no face is in frame.
     let ambientLightSource = ambientLightLuxRaw !== null && ambientLightLuxRaw !== undefined ? 'sensor' : 'none';
-    if (ambientLightLuxRaw == null && validWebcam && webcamResult?.stats && typeof webcamResult.stats.exposure === 'number') {
-      ambientLightLuxRaw = webcamLuxEstimate(webcamResult.stats.exposure);
+    const faceMeanForLux = validWebcam && webcamResult?.faces && typeof webcamResult.faces.faceBrightness === 'number'
+      ? webcamResult.faces.faceBrightness
+      : (validWebcam && webcamResult?.stats && typeof webcamResult.stats.exposure === 'number' ? webcamResult.stats.exposure : null);
+    if (ambientLightLuxRaw == null && faceMeanForLux !== null) {
+      ambientLightLuxRaw = faceLuxEstimate(faceMeanForLux);
       if (ambientLightLuxRaw !== null) ambientLightSource = 'webcam';
     }
     if (readSlowSignals) {
@@ -1068,9 +1080,12 @@ class BrightnessManager extends EventEmitter {
     if (statsData && typeof statsData.exposure === 'number') {
       // Auto-exposure pins the frame MEAN near a setpoint regardless of room
       // light, so the raw mean alone plateaus (identical scores for hours).
-      // Correct it with AE-invariant tail cues the worker already computes:
+      // Correct it with AE-invariant cues the worker already computes:
       // many crushed blacks => darker than the mean suggests, many clipped
-      // whites => brighter. Both are in percent (0-100).
+      // whites => brighter. Both are in percent (0-100). Percentiles
+      // (p50/p90/p95) are exported for diagnostics but not folded into the
+      // score: live calibration showed the tail shift the clip cues capture
+      // already spans the useful dynamic range.
       const crushed = typeof statsData.crushedBlacksPct === 'number' ? statsData.crushedBlacksPct : 0;
       const clipped = typeof statsData.clippedWhitesPct === 'number' ? statsData.clippedWhitesPct : 0;
       const effectiveExposure = statsData.exposure + clipped * 0.6 - crushed * 0.8;
