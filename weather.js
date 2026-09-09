@@ -210,8 +210,6 @@ async function fetchFromApi() {
     const usedKeys = new Set();
 
     for (let attempt = 0; attempt < Math.min(3, keys.length); attempt++) {
-        // First attempts use private keys in order (they cost nothing);
-        // once those are exhausted, fall back to a random public key.
         const privateUnused = keys.filter((k) => isPrivateKey(k) && !usedKeys.has(k));
         const apiKey = privateUnused.length > 0 ? privateUnused[0]
             : pickRandomKey(keys.filter((k) => !usedKeys.has(k)), null);

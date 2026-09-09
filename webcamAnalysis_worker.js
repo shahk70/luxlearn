@@ -7,10 +7,6 @@ const cv = require('@techstark/opencv-js');
 const bmp = require('bmp-js');
 
 const THRESHOLDS = {
-  // Calibrated 2026-09-08 from a 12-frame live probe session: no pixel on
-  // this sensor ever exceeded 250 (p99 sat at 224-233 even with the monitor
-  // in frame), so 250 made clippedWhitesPct a dead cue. 230 fires on real
-  // highlight content without noise.
   WHITE_CLIP: 230,
   BLACK_CRUSH: 5,
   NOISE_HIGH: 50.0,
@@ -128,10 +124,6 @@ function analyzeBasicStatsOpencv(grayMat) {
     cv.inRange(grayMat, clipBound, maxBound, mask);
     const clippedCount = cv.countNonZero(mask);
 
-    // AE-invariant room-light cues: auto-exposure pins the mean and stretches
-    // the bulk of the histogram, but the median follows the scene's dominant
-    // surface while p90/p95 track the brightest content. Both survive gain
-    // changes that flatten the mean (verified in a live 4-condition session).
     const hist = new Array(256).fill(0);
     const step = Math.max(1, Math.floor(totalPixels / 20000));
     let sampled = 0;
@@ -309,12 +301,6 @@ function detectFacesOnMat(grayMat) {
       infos.push({ x: f.x, y: f.y, width: f.width, height: f.height, mean });
     }
 
-    // Primary face = center-most detection. Haar also fires on lamps and
-    // posters; averaging every box let a bright lamp drag the face mean
-    // (live: it pulled the bright-condition face mean from ~146 to ~106,
-    // inverting the dim->bright ordering). The user sits centered in front
-    // of the laptop, so center proximity is the most stable plausibility
-    // signal available.
     let primary = null;
     let bestScore = Infinity;
     for (const info of infos) {
@@ -352,13 +338,11 @@ function detectFacesOnMat(grayMat) {
   }
 }
 
-function analyzeFrame({ buffer, width, height, faceDetectWidth, analysisWidth, analysisHeight, detectFaces }) {
+function analyzeFrame({ buffer, width, height, detectFaces }) {
   const data = new Uint8Array(buffer);
 
   let srcMatFull = null;
   let grayMatFull = null;
-  let srcMatSmall = null;
-  let grayMatSmall = null;
 
   try {
     srcMatFull = new cv.Mat(height, width, cv.CV_8UC4);
@@ -373,20 +357,14 @@ function analyzeFrame({ buffer, width, height, faceDetectWidth, analysisWidth, a
       grayMatFull = null;
     }
 
-    srcMatSmall = new cv.Mat();
-    grayMatSmall = new cv.Mat();
+    const grayForFull = new cv.Mat();
+    cv.cvtColor(srcMatFull, grayForFull, cv.COLOR_RGBA2GRAY);
 
-    const smallSize = new cv.Size(analysisWidth, analysisHeight);
-    cv.resize(srcMatFull, srcMatSmall, smallSize, 0, 0, cv.INTER_AREA);
-
-    const grayForSmall = new cv.Mat();
-    cv.cvtColor(srcMatSmall, grayForSmall, cv.COLOR_RGBA2GRAY);
-
-    const baseStats = analyzeBasicStatsOpencv(grayForSmall);
-    const colorAnalysis = analyzeColorBalanceOpencv(srcMatSmall);
-    const blurStats = analyzeBlurOpencv(grayForSmall);
-    const lighting = analyzeLightingOpencv(grayForSmall, baseStats);
-    grayForSmall.delete();
+    const baseStats = analyzeBasicStatsOpencv(grayForFull);
+    const colorAnalysis = analyzeColorBalanceOpencv(srcMatFull);
+    const blurStats = analyzeBlurOpencv(grayForFull);
+    const lighting = analyzeLightingOpencv(grayForFull, baseStats);
+    grayForFull.delete();
 
     let exposureScore = 0;
     let scoreDiagnosis = [];
@@ -464,8 +442,6 @@ function analyzeFrame({ buffer, width, height, faceDetectWidth, analysisWidth, a
         exposure: Math.round(effectiveMean),
         noise: Math.round(baseStats.stdDev),
         sharpness: Math.round(blurStats.variance),
-        // AE-invariant light cues: auto-exposure pins the mean, so these
-        // tail fractions carry the real room-light variance.
         crushedBlacksPct: Math.round(baseStats.crushedBlacksPct * 10) / 10,
         clippedWhitesPct: Math.round(baseStats.clippedWhitesPct * 10) / 10,
         p50: baseStats.p50,
@@ -482,19 +458,19 @@ function analyzeFrame({ buffer, width, height, faceDetectWidth, analysisWidth, a
         count: faceAnalysis.count,
         faceBrightness: faceAnalysis.faceExposure ? Math.round(faceAnalysis.faceExposure) : 'N/A',
         positions: faceAnalysis.faces
-      }
+      },
+      frameWidth: width,
+      frameHeight: height
     };
 
   } finally {
     if (srcMatFull) srcMatFull.delete();
     if (grayMatFull) grayMatFull.delete();
-    if (srcMatSmall) srcMatSmall.delete();
-    if (grayMatSmall) grayMatSmall.delete();
   }
 }
 
 parentPort.on('message', async (msg) => {
-  const { id, raw, bmpBuffer, faceDetectWidth, analysisWidth, analysisHeight, detectFaces } = msg;
+  const { id, raw, bmpBuffer, detectFaces } = msg;
   try {
     await waitForCvReady();
     let buffer = raw;
@@ -503,9 +479,6 @@ parentPort.on('message', async (msg) => {
       const decoded = bmp.decode(Buffer.from(bmpBuffer));
       width = decoded.width;
       height = decoded.height;
-      // bmp-js 0.1.0 decodes 24bpp BMPs as [0, B, G, R] per pixel (misread as
-      // 32-bit ABGR). Reorder to RGBA and set alpha=255 or the zero byte lands
-      // in the blue channel of the CV_8UC4 Mat and tints the whole frame.
       const src = decoded.data;
       const rgba = new Uint8ClampedArray(width * height * 4);
       for (let i = 0; i < rgba.length; i += 4) {
@@ -514,24 +487,12 @@ parentPort.on('message', async (msg) => {
         rgba[i + 2] = src[i + 1];
         rgba[i + 3] = 255;
       }
-      const srcMat = new cv.Mat(height, width, cv.CV_8UC4);
-      srcMat.data.set(rgba);
-      const faceW = Math.min(width, faceDetectWidth || width);
-      const scale = faceW / width;
-      const dstW = faceW;
-      const dstH = Math.round(height * scale);
-      const dst = new cv.Mat(dstH, dstW, cv.CV_8UC4);
-      cv.resize(srcMat, dst, new cv.Size(dstW, dstH), 0, 0, cv.INTER_AREA);
-      buffer = new Uint8ClampedArray(dst.data);
-      width = dstW;
-      height = dstH;
-      srcMat.delete();
-      dst.delete();
+      buffer = rgba;
     } else {
       width = msg.width;
       height = msg.height;
     }
-    const result = analyzeFrame({ buffer, width, height, faceDetectWidth, analysisWidth, analysisHeight, detectFaces });
+    const result = analyzeFrame({ buffer, width, height, detectFaces });
     parentPort.postMessage({ id, result });
   } catch (err) {
     parentPort.postMessage({ id, error: err.message });

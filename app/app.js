@@ -1,6 +1,6 @@
+// app.js — Electron main process (entry point; loads .env first).
 // To build a distributable, use one of the packaging scripts in package.json,
 // e.g. `npm run dist:win` / `npm run dist:mac` / `npm run dist:linux`.
-// app.js — Electron main process (entry point; loads .env first).
 
 require('dotenv').config();
 
@@ -18,16 +18,12 @@ const { getBrightnessBackendName, getActiveWindowSafe, getPowerStatus, listDispl
 const UPDATE_STATUS_INTERVAL_MS = 5000;
 const WEATHER_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
-// --- In-app updater (electron-updater: check + download + quit-and-install) ---
-// GUI flow only: no silent auto-install; the user confirms via the banner.
-// REPO_OWNER/REPO_NAME are declared near the update checker below; they are
-// used lazily inside event callbacks, so hoisting order is not an issue.
 let autoUpdater = null;
 try {
     const { autoUpdater: au } = require('electron-updater');
     autoUpdater = au;
-    autoUpdater.autoDownload = false;      // download only after user clicks "Update"
-    autoUpdater.autoInstallOnAppQuit = true; // install downloaded update on next quit
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.logger = console;
     autoUpdater.on('update-available', (info) => {
         sendToMainWindow('update-available', {
@@ -127,48 +123,48 @@ function sendToMainWindow(channel, ...args) {
 }
 
 const DEFAULT_ACTIVITY_SETTINGS = {
-  gaming: { enabled: false },
-  video: { enabled: false },
-  custom: []
+    gaming: { enabled: false },
+    video: { enabled: false },
+    custom: []
 };
 
 const VIDEO_PROCESSES = ['vlc', 'mpv', 'potplayer', 'netflix', 'disney', 'prime video', 'youtube', 'twitch', 'plex', 'kodi', 'movies', 'tv'];
 const GAME_HINTS = ['game', 'steam', 'epic', 'origin', 'uplay', 'riot', 'battle.net', 'minecraft', 'roblox'];
 
 function normalizeActivities(raw) {
-  const base = { ...DEFAULT_ACTIVITY_SETTINGS, custom: Array.isArray(raw?.custom) ? raw.custom : [] };
-  base.gaming = { enabled: raw?.gaming?.enabled === true };
-  base.video = { enabled: raw?.video?.enabled === true };
-  base.custom = base.custom.map((a, i) => ({
-    id: typeof a?.id === 'string' ? a.id : 'custom-' + i + '-' + Date.now(),
-    name: String(a?.name || 'Activity').slice(0, 60),
-    matchType: a?.matchType === 'title' ? 'title' : 'process',
-    value: String(a?.value || '').slice(0, 120),
-    enabled: a?.enabled === true,
-  })).filter(a => a.value.trim().length > 0);
-  return base;
+    const base = { ...DEFAULT_ACTIVITY_SETTINGS, custom: Array.isArray(raw?.custom) ? raw.custom : [] };
+    base.gaming = { enabled: raw?.gaming?.enabled === true };
+    base.video = { enabled: raw?.video?.enabled === true };
+    base.custom = base.custom.map((a, i) => ({
+        id: typeof a?.id === 'string' ? a.id : 'custom-' + i + '-' + Date.now(),
+        name: String(a?.name || 'Activity').slice(0, 60),
+        matchType: a?.matchType === 'title' ? 'title' : 'process',
+        value: String(a?.value || '').slice(0, 120),
+        enabled: a?.enabled === true,
+    })).filter(a => a.value.trim().length > 0);
+    return base;
 }
 
 function activityMatchesWindow(activities, win) {
-  const title = (win?.title || '').toLowerCase();
-  const processName = (win?.name || '').toLowerCase();
-  const isFullscreenLike = win?.bounds
-    ? win.bounds.width >= (screen.getPrimaryDisplay().workAreaSize.width - 20)
-    : false;
+    const title = (win?.title || '').toLowerCase();
+    const processName = (win?.name || '').toLowerCase();
+    const isFullscreenLike = win?.bounds
+        ? win.bounds.width >= (screen.getPrimaryDisplay().workAreaSize.width - 20)
+        : false;
 
-  if (activities.gaming.enabled) {
-    const hint = GAME_HINTS.some(h => processName.includes(h) || title.includes(h));
-    if (hint && isFullscreenLike) return 'Gaming';
-  }
-  if (activities.video.enabled) {
-    if (VIDEO_PROCESSES.some(v => processName.includes(v)) && isFullscreenLike) return 'Watching Video';
-  }
-  for (const a of activities.custom) {
-    if (!a.enabled) continue;
-    if (a.matchType === 'process' && processName.includes(a.value.toLowerCase())) return a.name;
-    if (a.matchType === 'title' && title.includes(a.value.toLowerCase())) return a.name;
-  }
-  return null;
+    if (activities.gaming.enabled) {
+        const hint = GAME_HINTS.some(h => processName.includes(h) || title.includes(h));
+        if (hint && isFullscreenLike) return 'Gaming';
+    }
+    if (activities.video.enabled) {
+        if (VIDEO_PROCESSES.some(v => processName.includes(v)) && isFullscreenLike) return 'Watching Video';
+    }
+    for (const a of activities.custom) {
+        if (!a.enabled) continue;
+        if (a.matchType === 'process' && processName.includes(a.value.toLowerCase())) return a.name;
+        if (a.matchType === 'title' && title.includes(a.value.toLowerCase())) return a.name;
+    }
+    return null;
 }
 
 let activityPauseLabel = null;
@@ -349,7 +345,7 @@ async function setLinuxAutostart(enabled) {
         const autostartDir = path.join(configHome, 'autostart');
         const desktopFile = path.join(autostartDir, 'luxlearn.desktop');
         if (!enabled) {
-            await fs.unlink(desktopFile).catch(() => {});
+            await fs.unlink(desktopFile).catch(() => { });
             return;
         }
         await fs.mkdir(autostartDir, { recursive: true });
@@ -403,11 +399,11 @@ async function ensureCameraAccess() {
 }
 
 function openScreenRecordingSettings() {
-    shell.openExternal(SCREEN_SETTINGS_URL).catch(() => {});
+    shell.openExternal(SCREEN_SETTINGS_URL).catch(() => { });
 }
 
 function openCameraSettings() {
-    shell.openExternal(CAMERA_SETTINGS_URL).catch(() => {});
+    shell.openExternal(CAMERA_SETTINGS_URL).catch(() => { });
 }
 
 const getMacPermissionsModule = () => process.platform === 'darwin'
@@ -481,8 +477,6 @@ ipcMain.handle('save-settings', (_, s) => persistAndApplySettings(s));
 ipcMain.handle('load-settings', () => state.settings);
 ipcMain.handle('load-learning-config', () => brightnessManager?.learningConfig || {});
 ipcMain.handle('reset-settings', async () => {
-    // Resetting settings also restarts the learning phase from day 0, matching
-    // the "clear history" behavior — a factory reset should be a clean slate.
     brightnessManager?.restartLearningPhase();
     return persistAndApplySettings({ ...defaultSettings });
 });
@@ -495,8 +489,6 @@ ipcMain.handle('get-power-status', () => getPowerStatus().catch(() => null));
 ipcMain.handle('list-cameras', () => listCameras().catch(() => []));
 ipcMain.handle('list-displays', () => listDisplays().catch(() => []));
 
-// --- Update checker (GitHub Releases, notify-only) ---
-
 const REPO_OWNER = 'shahk70';
 const REPO_NAME = 'luxlearn';
 
@@ -505,90 +497,87 @@ const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // once a day
 const REQUEST_TIMEOUT_MS = 8000;
 
 function parseVersion(v) {
-  return String(v)
-    .trim()
-    .replace(/^v/i, '')
-    .split('.')
-    .map((n) => parseInt(n, 10) || 0);
+    return String(v)
+        .trim()
+        .replace(/^v/i, '')
+        .split('.')
+        .map((n) => parseInt(n, 10) || 0);
 }
 
 function isNewer(remoteVersion, localVersion) {
-  const remote = parseVersion(remoteVersion);
-  const local = parseVersion(localVersion);
-  const len = Math.max(remote.length, local.length);
-  for (let i = 0; i < len; i++) {
-    const r = remote[i] || 0;
-    const l = local[i] || 0;
-    if (r > l) return true;
-    if (r < l) return false;
-  }
-  return false;
+    const remote = parseVersion(remoteVersion);
+    const local = parseVersion(localVersion);
+    const len = Math.max(remote.length, local.length);
+    for (let i = 0; i < len; i++) {
+        const r = remote[i] || 0;
+        const l = local[i] || 0;
+        if (r > l) return true;
+        if (r < l) return false;
+    }
+    return false;
 }
 
 async function checkForUpdates() {
-  if (!REPO_OWNER || REPO_OWNER === 'your-github-username') {
-    return null;
-  }
+    if (!REPO_OWNER || REPO_OWNER === 'your-github-username') {
+        return null;
+    }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  try {
-    const res = await fetch(RELEASES_API, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': `${REPO_NAME}-update-checker`,
-        Accept: 'application/vnd.github+json',
-      },
-    });
-    if (!res.ok) throw new Error(`GitHub API responded ${res.status}`);
+    try {
+        const res = await fetch(RELEASES_API, {
+            signal: controller.signal,
+            headers: {
+                'User-Agent': `${REPO_NAME}-update-checker`,
+                Accept: 'application/vnd.github+json',
+            },
+        });
+        if (!res.ok) throw new Error(`GitHub API responded ${res.status}`);
 
-    const data = await res.json();
-    const latestTag = data.tag_name || data.name;
-    if (!latestTag) return null;
+        const data = await res.json();
+        const latestTag = data.tag_name || data.name;
+        if (!latestTag) return null;
 
-    const currentVersion = app.getVersion();
-    if (!isNewer(latestTag, currentVersion)) return null;
+        const currentVersion = app.getVersion();
+        if (!isNewer(latestTag, currentVersion)) return null;
 
-    return {
-      version: latestTag,
-      url: data.html_url || `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`,
-      notes: data.body || '',
-    };
-  } catch (error) {
-    console.warn('Update check failed:', error.message);
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
+        return {
+            version: latestTag,
+            url: data.html_url || `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`,
+            notes: data.body || '',
+        };
+    } catch (error) {
+        console.warn('Update check failed:', error.message);
+        return null;
+    } finally {
+        clearTimeout(timeout);
+    }
 }
 
 function startUpdateChecks(onUpdateAvailable) {
-  const run = async () => {
-    try {
-      // electron-updater emits its own update-available event (wired above);
-      // only fall back to the notify-only GitHub check when it is missing.
-      if (autoUpdater) {
-        await autoUpdater.checkForUpdates().catch((err) => {
-          console.warn('electron-updater tick failed:', err && err.message);
-          return checkForUpdates().then((u) => { if (u) onUpdateAvailable(u); });
-        });
-        return;
-      }
-      const update = await checkForUpdates();
-      if (update) onUpdateAvailable(update);
-    } catch (err) {
-      console.warn('Update check tick failed:', err.message);
-    }
-  };
+    const run = async () => {
+        try {
+            if (autoUpdater) {
+                await autoUpdater.checkForUpdates().catch((err) => {
+                    console.warn('electron-updater tick failed:', err && err.message);
+                    return checkForUpdates().then((u) => { if (u) onUpdateAvailable(u); });
+                });
+                return;
+            }
+            const update = await checkForUpdates();
+            if (update) onUpdateAvailable(update);
+        } catch (err) {
+            console.warn('Update check tick failed:', err.message);
+        }
+    };
 
-  run();
-  const interval = setInterval(run, CHECK_INTERVAL_MS);
-  if (interval.unref) interval.unref();
-  return () => clearInterval(interval);
+    run();
+    const interval = setInterval(run, CHECK_INTERVAL_MS);
+    if (interval.unref) interval.unref();
+    return () => clearInterval(interval);
 }
 
-// --- Activities IPC ---
 ipcMain.handle('activities:get', () => normalizeActivities(state.settings.activities));
 ipcMain.handle('activities:set', (_, raw) => {
     const current = normalizeActivities(state.settings.activities);
@@ -661,12 +650,9 @@ ipcMain.handle('activity:check-window', async () => {
     }
 });
 
-// --- About IPC ---
 ipcMain.handle('about:get-version', () => app.getVersion());
 ipcMain.handle('about:check-updates', async () => {
     try {
-        // Prefer electron-updater (checks + can download); fall back to the
-        // notify-only GitHub check if the updater module failed to load.
         if (autoUpdater) {
             try {
                 const result = await autoUpdater.checkForUpdates();
@@ -698,8 +684,6 @@ ipcMain.handle('about:check-updates', async () => {
     }
 });
 
-// Download the pending update in-app, then offer quit-and-install.
-// No silent installs: the renderer only calls this after the user clicks.
 ipcMain.handle('about:download-update', async () => {
     if (!autoUpdater) return { success: false, error: 'updater-unavailable' };
     try {
@@ -712,10 +696,6 @@ ipcMain.handle('about:download-update', async () => {
 ipcMain.handle('about:install-update', () => {
     if (!autoUpdater) return { success: false, error: 'updater-unavailable' };
     try {
-        // Mark quitting BEFORE quitAndInstall: the main window's close handler
-        // hides-to-tray on any close where isQuitting is false, which aborts
-        // app.quit() inside quitAndInstall — the user then sees "nothing
-        // happen" (the pending install only ran later on a real manual quit).
         app.isQuitting = true;
         autoUpdater.quitAndInstall(false, true);
         return { success: true };
@@ -726,7 +706,6 @@ ipcMain.handle('about:install-update', () => {
     }
 });
 
-// --- Export / Import full user data ---
 function buildExportPayload() {
     return {
         format: 'auto-bright-export',
@@ -802,9 +781,6 @@ ipcMain.handle('import-data', async () => {
         }
         if (data.learningConfig && brightnessManager) {
             const lc = data.learningConfig;
-            // An imported learning phase descriptor replaces the local one so
-            // the restored setup continues its original phase (or restarts it
-            // if the importer's phase had already completed).
             if (typeof lc.startTime !== 'undefined' && !isNaN(new Date(lc.startTime).getTime())) {
                 brightnessManager.learningConfig.startTime = new Date(lc.startTime).getTime();
                 imported++;
@@ -988,10 +964,10 @@ function createTray() {
     tray = new Tray(getAppIcon());
     updateTrayMenu();
     tray.on('click', () => {
-            if (!mainWindow) createWindow();
-            else if (mainWindow.isVisible() && !mainWindow.isMinimized()) mainWindow.hide();
-            else showMainWindow();
-        });
+        if (!mainWindow) createWindow();
+        else if (mainWindow.isVisible() && !mainWindow.isMinimized()) mainWindow.hide();
+        else showMainWindow();
+    });
 }
 
 function applyPause(action) {
@@ -1032,12 +1008,14 @@ function updateTrayMenu() {
                 : [
                     { label: 'Pause for 1 hour', click: () => applyPause((bm) => bm.pauseAdjustments(60 * 60 * 1000)) },
                     { label: 'Pause for 4 hours', click: () => applyPause((bm) => bm.pauseAdjustments(4 * 60 * 60 * 1000)) },
-                    { label: 'Pause until tomorrow (8:00 AM)', click: () => {
-                        const until = new Date();
-                        until.setHours(8, 0, 0, 0);
-                        if (until <= Date.now()) until.setDate(until.getDate() + 1);
-                        applyPause((bm) => bm.pauseAdjustments(until.getTime() - Date.now()));
-                    } }
+                    {
+                        label: 'Pause until tomorrow (8:00 AM)', click: () => {
+                            const until = new Date();
+                            until.setHours(8, 0, 0, 0);
+                            if (until <= Date.now()) until.setDate(until.getDate() + 1);
+                            applyPause((bm) => bm.pauseAdjustments(until.getTime() - Date.now()));
+                        }
+                    }
                 ]
         },
         { type: 'separator' },
@@ -1065,10 +1043,6 @@ app.on('window-all-closed', (e) => {
 });
 
 app.on('before-quit', async (e) => {
-    // Skip the graceful-shutdown round-trip when an update install is in
-    // progress: the updater already called app.quit() after spawning the
-    // detached installer — delaying here can race the installer (which waits
-    // for this process to exit) and leaves the user staring at a hung app.
     if (autoUpdater && autoUpdater.quitAndInstallCalled) return;
     if (!app.isQuitting && brightnessManager) {
         e.preventDefault();

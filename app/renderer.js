@@ -47,7 +47,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- i18n ---
     initI18n(I18N);
     const t = (key, params) => window.t ? window.t(key, params) : key;
     const getLocale = () => window.getLocale ? window.getLocale() : savedLocale;
@@ -539,8 +538,6 @@ window.addEventListener('DOMContentLoaded', () => {
     let updateDownloading = false;
     let updateReady = false;
 
-    // electron-updater emits bare versions ("1.2.5") while the notify-only
-    // check prefixes "v" — compare and display normalized everywhere.
     const normVersion = (v) => String(v ?? '').replace(/^v/i, '');
 
     function setUpdateButton(state) {
@@ -575,7 +572,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (updateReady) {
                     const result = await window.api.installUpdate?.();
                     if (result && result.success === false && result.error === 'nothing-downloaded') {
-                        // State lost (main restarted, etc.) — reset to download flow.
                         updateReady = false;
                         setUpdateButton({ disabled: false, key: 'update.installNow' });
                         setText(elems.updateBannerText, t('update.availableDetail', { version: update.version }));
@@ -769,9 +765,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (result?.success) showToast(t('toast.resumed'));
     });
 
-
-
-    // --- Language selector ---
     let lastKnownWeights = null;
     let lastInteractionPair = null;
     let lastOsSupport = null;
@@ -925,7 +918,6 @@ window.addEventListener('DOMContentLoaded', () => {
         const chip = document.getElementById('about-backend-chip');
         if (chip && backend) { chip.hidden = false; chip.textContent = backend; }
     }).catch(() => {});
-    // --- Export / Import full data ---
     elems.exportDataBtn?.addEventListener('click', async () => {
         const result = await window.api.exportData?.();
         if (result?.success) showToast(t('toast.exportDone'));
@@ -938,8 +930,6 @@ window.addEventListener('DOMContentLoaded', () => {
             showToast(t('profile.importSuccess', { count: result.count }));
             invalidateHistoryChart();
             drawHistoryChart();
-            // Restored settings may carry a different learning phase; refresh
-            // the profile (progress row) and status panels from the manager.
             window.api.loadSettings?.().then((settings) => {
                 applyConfig(settings, { skipIfCurrent: true });
             });
@@ -962,8 +952,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     showToast(t('toast.historyCleared'));
                     invalidateHistoryChart();
                     drawHistoryChart();
-                    // Phase and day counter restart with the cleared history;
-                    // pull the fresh config so the profile row shows day 0.
                     window.api.loadLearningConfig?.().then((lc) => {
                         if (lc) updateProfileUI(lastAppliedConfig || {}, lc);
                     });

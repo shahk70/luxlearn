@@ -239,9 +239,6 @@ async function winReadLux() {
 }
 
 const IIO_BASE = '/sys/bus/iio/devices';
-// Candidate channel filenames, most precise first. Covers standard IIO
-// illuminance channels plus hid-sensor-hub variants (in_illuminance0_*,
-// in_illuminance_mean).
 const IIO_CHANNEL_CANDIDATES = [
   { file: 'in_illuminance_input', kind: 'input' },
   { file: 'in_illuminance_raw', kind: 'raw' },
@@ -255,9 +252,6 @@ async function fileExists(p) {
   try { await fs.access(p); return true; } catch { return false; }
 }
 
-// Rescan on each miss (instead of caching `false` forever): USB/HID light
-// sensors can be plugged in at runtime, and a device that failed once (driver
-// init) may come back after resume.
 async function findIioLightDevice() {
   if (cachedIioDevicePath && await fileExists(cachedIioDevicePath)) return cachedIioDevicePath;
   try {
@@ -290,8 +284,6 @@ async function linuxReadLux() {
 
       if (channel.kind === 'input') return rawValue;
 
-      // raw channels scale to lux; per-channel scale or offset may exist
-      // (in_illuminance0_raw pairs with in_illuminance0_scale, not the bare name).
       let scale = 1;
       const scaleFile = channel.file.replace(/_raw$/, '_scale');
       if (scaleFile !== channel.file && await fileExists(path.join(devicePath, scaleFile))) {
@@ -306,8 +298,6 @@ async function linuxReadLux() {
       }
       return rawValue * scale;
     }
-    // Device listed but no readable channel — drop the cache so the next
-    // cycle can find a newly attached sensor.
     cachedIioDevicePath = null;
     return null;
   } catch {
@@ -321,7 +311,6 @@ async function macReadLux() {
     const match = stdout.match(/AppleALSSensorValue"\s*=\s*\(?\s*(\d+)/);
     if (match) return parseFloat(match[1]);
   } catch { /* fall through to non-LMU sensor probe */ }
-  // Newer Macs expose ALS under AppleALSSensor without the LMU controller class.
   try {
     const { stdout } = await execAsync('ioreg -r -k ALSBoolValue1 -d1');
     const match = stdout.match(/AppleALSSensorValue"\s*=\s*\(?\s*(\d+)/);
@@ -348,8 +337,6 @@ async function readAmbientLightLux() {
 let resolvedAvailabilityCheckedAt = 0;
 const ALS_AVAILABILITY_TTL_MS = 10 * 60 * 1000;
 
-// Availability is cached for 10 minutes (not forever): runtime-attached USB
-// sensors and post-resume driver states would otherwise never be noticed.
 async function hasAmbientLightSensor() {
   const now = Date.now();
   if (resolvedAvailability !== undefined && (now - resolvedAvailabilityCheckedAt) < ALS_AVAILABILITY_TTL_MS) {
@@ -390,9 +377,6 @@ function detectDeviceProfile() {
   } catch { /* keep empty */ }
   const isArm = arch === 'arm64';
 
-  // ARM efficiency cores (Apple Silicon, Snapdragon X) report low clock speeds
-  // and modest core counts but comfortably run the analysis worker — don't
-  // classify them as weak on speed/RAM heuristics alone.
   const weak = isArm
     ? (cores > 0 && cores <= 2 && totalMemGB > 0 && totalMemGB <= 4)
     : (cores > 0 && cores <= 2) ||
@@ -506,16 +490,11 @@ async function screenAvgBrightness() {
 }
 
 
-// Per-candidate status: id -> 'ok' | 'fail' | undefined (unprobed). Replaces the
-// old single-latch winGetMode/winSetMode so working candidates stick and dead
-// ones are skipped without re-probing every cycle.
 const winCandidateStatus = new Map();
 
 const WIN_GET_CMD_WMI = 'powershell.exe -NoProfile -Command "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness"';
-const WIN_GET_CMD_CIM = 'powershell.exe -NoProfile -Command "(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness).CurrentBrightness"';
 const WIN_SET_CMD_WMI = (val) => `powershell.exe -NoProfile -Command "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,${val})"`;
 
-// Combined hint when no Windows candidate works. Emitted once per chain failure.
 function winUnsupportedError() {
   return new Error(
     'No brightness backend available on Windows: WMI/CIM require an internal laptop display ' +
@@ -533,8 +512,6 @@ async function winGetWmi() {
   return value;
 }
 
-// CIM read scoped to a specific monitor instance so per-display targeting works
-// when several WmiMonitorBrightness instances exist.
 async function winGetCim(instance) {
   let cmd = 'powershell.exe -NoProfile -Command "(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness).CurrentBrightness"';
   if (instance) {
@@ -561,10 +538,6 @@ async function winSetCimInstance(clamped, instance) {
   );
 }
 
-// Dxva2 DDC/CI backend for external monitors (no WMI support). Enumerates
-// physical monitors via EnumDisplayMonitors + GetPhysicalMonitorsFromHMONITOR,
-// then Get/SetMonitorBrightness per handle. Runs through execPowerShell with
-// the action encoded, so quoting stays safe.
 const WIN_DDC_LIST_COMMAND = `
 $ErrorActionPreference='Stop';
 Add-Type @"
@@ -765,8 +738,6 @@ async function winSetCim(clamped) {
   await execAsync(WIN_SET_CMD_CIM(clamped));
 }
 
-// macOS backend chain: built-in `brightness` -> m1ddc (Apple Silicon external)
-// -> ddcctl (Intel external). Per-tool status map so dead tools are skipped.
 const macCandidateStatus = new Map();
 
 async function resolveMacBackend(preferred) {
@@ -885,9 +856,6 @@ async function macSet(value, opts = {}) {
   }
 }
 
-// Linux backend chain with per-tool status so a broken tool (e.g. no
-// permissions on backlight sysfs) falls through to the next instead of
-// latching forever.
 const linuxCandidateStatus = new Map();
 const LINUX_BACKEND_ORDER = ['brightnessctl', 'light', 'ddcutil', 'xrandr'];
 
@@ -914,8 +882,6 @@ function linuxMissingError() {
   );
 }
 
-// All connected xrandr outputs (was first-only; multi-monitor setups now get
-// every display adjusted).
 async function getXrandrOutputs() {
   const { stdout } = await execAsync('xrandr --current');
   const outputs = [];
@@ -987,8 +953,6 @@ async function linuxGet() {
     const output = await getXrandrOutputs();
     return readXrandrBrightness(parseXrandrTargetDisplay(xrandrTargetRef.value) ?? output[0]);
   } catch (err) {
-    // A hard failure (device vanished, permissions revoked) should not latch:
-    // allow the next cycle to re-probe this backend.
     markLinuxBackendFailed(backend);
     throw err;
   }
@@ -1132,8 +1096,6 @@ async function getBrightnessBackendName() {
   try {
     switch (PLATFORM) {
       case 'win32': {
-        // Report which candidate actually works (probe via a cheap get) so
-        // warnings/UI reflect the real chain rather than assuming WMI.
         try {
           await winGet();
         } catch { /* all fail; fall through to name report */ }
@@ -1156,9 +1118,7 @@ async function getBrightnessBackendName() {
 }
 
 module.exports = {
-  // brightness control
   getSystemBrightness, setSystemBrightness, getBrightnessBackendName, listDisplays,
-  // sensors / signals
   hasAmbientLightSensor, readAmbientLightLux, getPowerStatus, getNightLightState,
   detectDeviceProfile, getCurrentWindow, getActiveWindowInfo, getActiveWindowSafe: getActiveWindowInfo,
   screenAvgBrightness,

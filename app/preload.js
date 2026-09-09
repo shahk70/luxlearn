@@ -1,10 +1,6 @@
 // preload.js
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Events sent before the renderer registers its listeners (e.g. right after
-// did-finish-load) would otherwise be lost, leaving status fields stuck at
-// their "--" placeholders. Buffer the latest payload per channel and replay
-// it on first subscription.
 const earlyBuffer = {};
 const bufferedChannels = ['weather-update', 'dynamic-status-update', 'settings-updated', 'log-update', 'update-available', 'update-download-progress', 'update-downloaded', 'os-support-update'];
 for (const channel of bufferedChannels) {

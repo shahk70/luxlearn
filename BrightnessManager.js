@@ -49,30 +49,10 @@ const CONFIG = Object.freeze({
     SLOW_SIGNAL_INTERVAL_MS: 10 * 60 * 1000,
     POLL_INTERVAL_FLOOR_SEC: 3,
     OVERLOAD_CYCLE_RATIO: 0.6,
-    // Battery levels at/above this percent all map to scarcity 1.0, so normal
-    // charge drift (e.g. 100 -> 80) never influences predictions. Below it,
-    // the feature scales down linearly toward 0 as the battery empties.
     BATTERY_SCARCITY_CEILING: 50,
   },
 });
 
-// Camera exposure mean (0-255) -> rough lux estimate for the webcam-as-lux
-// fallback. Auto-exposure keeps the mean mid-range across a wide band of
-// room light, so this is an ordinal proxy (dim < ~40 < lit < ~110 < bright),
-// not a calibrated reading. Mapped to plausible indoor lux so it blends with
-// real ALS values in the same log scale.
-function webcamLuxEstimate(exposure) {
-  if (!Number.isFinite(exposure)) return null;
-  const clamped = Math.min(255, Math.max(0, exposure));
-  return Math.round(3 * Math.exp((clamped / 255) * Math.log(2000 / 3)));
-}
-
-// Face mean (0-255) -> rough lux estimate for the webcam-as-lux fallback.
-// Inverted-gamma mapping: the camera's ~0.45 gamma plus auto-exposure
-// compression understates light ratios badly (live: a 4x room-light swing
-// moved face means only 46->84, 1.8x). Raising to 2.3 recovers an
-// approximately linear light ratio, anchored at 78 ~= 100 lux (a normally
-// lit living room). Ordinal proxy, not a calibrated reading.
 function faceLuxEstimate(faceBrightness) {
   if (!Number.isFinite(faceBrightness)) return null;
   const clamped = Math.min(255, Math.max(1, faceBrightness));
@@ -109,10 +89,6 @@ for (const [key, def] of Object.entries(FEATURE_DEFINITIONS)) {
 }
 const ALL_FEATURES = [...NUMERIC_FEATURES, ...CATEGORICAL_FEATURES];
 
-// Battery percent -> scarcity factor used as the batteryLevel feature. Levels
-// at/above BATTERY_SCARCITY_CEILING all map to 1.0 so everyday charge drift
-// (100 -> 80 etc.) cannot move predictions; below the ceiling the feature
-// falls linearly to 0 as the battery empties.
 function batteryScarcity(percent) {
   if (typeof percent !== 'number' || !Number.isFinite(percent)) return null;
   return Math.min(1, Math.max(0, percent / CONFIG.ALGORITHM.BATTERY_SCARCITY_CEILING));
@@ -979,9 +955,6 @@ class BrightnessManager extends EventEmitter {
       visualConfidence: parse(entry.visualConfidence),
       app: entry.app ?? entry.currentWindow ?? null,
       powerSource: ['AC', 'battery', 'unknown'].includes(entry.powerSource) ? entry.powerSource : 'unknown',
-      // Legacy logs store raw 0-100 percent; current logs store the scarcity
-      // factor (0-1). Values >1 are legacy percents, reshape them; values <=1
-      // are already scarcity.
       batteryLevel: (rawBatteryLevel => rawBatteryLevel == null ? null : rawBatteryLevel > 1 ? batteryScarcity(rawBatteryLevel) : rawBatteryLevel)(parse(entry.batteryLevel)),
       nightLight: entry.nightLight === 'on' || entry.nightLight === 'off' ? entry.nightLight
         : (entry.nightLight === true ? 'on' : entry.nightLight === false ? 'off' : 'unknown'),
@@ -1044,10 +1017,6 @@ class BrightnessManager extends EventEmitter {
     const nightLightOn = nightLightOutcome.status === 'fulfilled' ? nightLightOutcome.value : null;
     const validWebcam = webcamResult && !webcamResult.error;
 
-    // Webcam-as-lux fallback: when no dedicated ALS is readable, the camera
-    // face-patch mean is a rough ambient proxy (already computed for the
-    // webcam signal, so this costs nothing extra). Only used when ALS reads
-    // null. Falls back to the global mean when no face is in frame.
     let ambientLightSource = ambientLightLuxRaw !== null && ambientLightLuxRaw !== undefined ? 'sensor' : 'none';
     const faceMeanForLux = validWebcam && webcamResult?.faces && typeof webcamResult.faces.faceBrightness === 'number'
       ? webcamResult.faces.faceBrightness
@@ -1082,14 +1051,6 @@ class BrightnessManager extends EventEmitter {
     const statsData = validWebcam ? webcamResult.stats : null;
 
     if (statsData && typeof statsData.exposure === 'number') {
-      // Auto-exposure pins the frame MEAN near a setpoint regardless of room
-      // light, so the raw mean alone plateaus (identical scores for hours).
-      // Correct it with AE-invariant cues the worker already computes:
-      // many crushed blacks => darker than the mean suggests, many clipped
-      // whites => brighter. Both are in percent (0-100). Percentiles
-      // (p50/p90/p95) are exported for diagnostics but not folded into the
-      // score: live calibration showed the tail shift the clip cues capture
-      // already spans the useful dynamic range.
       const crushed = typeof statsData.crushedBlacksPct === 'number' ? statsData.crushedBlacksPct : 0;
       const clipped = typeof statsData.clippedWhitesPct === 'number' ? statsData.clippedWhitesPct : 0;
       const effectiveExposure = statsData.exposure + clipped * 0.6 - crushed * 0.8;
@@ -1112,9 +1073,16 @@ class BrightnessManager extends EventEmitter {
       faceCount = faceData.count;
       if (typeof faceData.faceBrightness === 'number') faceBrightness = faceData.faceBrightness;
       const primaryFace = faceData.positions?.[0];
+      const frameW = typeof webcamResult.frameWidth === 'number' ? webcamResult.frameWidth : null;
+      const frameArea = typeof webcamResult.frameWidth === 'number' && typeof webcamResult.frameHeight === 'number'
+        ? webcamResult.frameWidth * webcamResult.frameHeight
+        : null;
       if (primaryFace) {
-        faceProximity = Math.round((primaryFace.width * primaryFace.height) / 1000);
-        faceCenterDeviation = Math.round(Math.abs((primaryFace.x + (primaryFace.width / 2)) - 320));
+        const faceArea = primaryFace.width * primaryFace.height;
+        faceProximity = frameArea ? Math.round((faceArea / frameArea) * 1000) : Math.round(faceArea / 1000);
+        faceCenterDeviation = frameW
+          ? Math.round(Math.abs((primaryFace.x + (primaryFace.width / 2)) - frameW / 2) / frameW * 640)
+          : Math.round(Math.abs((primaryFace.x + (primaryFace.width / 2)) - 320));
       }
     } else if (validWebcam) {
       faceCount = 0; faceProximity = 0; faceCenterDeviation = 0;
@@ -1122,10 +1090,6 @@ class BrightnessManager extends EventEmitter {
 
     let visualConfidence = null;
     if (validWebcam && typeof webcamResult.score === 'number') {
-      // Worker quality score is face-aware and monotonic across the live
-      // ladder (dim ~33 < room ~58 < bright ~81). The old
-      // exposure-minus-noise formula sat at ~30 in every scene because
-      // sensor noise (~75) always dominated it.
       visualConfidence = webcamResult.score;
     } else if (validWebcam && statsData) {
       const { exposure, noise, sharpness } = statsData;
@@ -1232,10 +1196,6 @@ class BrightnessManager extends EventEmitter {
       this.settings.autoBrightMin !== newSettings.autoBrightMin ||
       this.settings.pollIntervalSec !== newSettings.pollIntervalSec ||
       this.settings.logSyncMin !== newSettings.logSyncMin;
-    // A changed learning duration re-bases the phase timer so the counter in
-    // the profile reflects the user's new expectation (e.g. restoring imported
-    // settings with learningDays=7 while 2 days in should not instantly
-    // complete the phase).
     const learningDaysChanged = this.settings.learningDays !== newSettings.learningDays;
     this.settings = newSettings;
     this._emitLog('info', 'Settings updated.');
@@ -1735,9 +1695,6 @@ class BrightnessManager extends EventEmitter {
     this._emitLog('info', 'Adjustments resumed.');
   }
 
-  // Re-arms the learning phase without wiping recorded history (settings reset,
-  // imported config with an unfinished phase). clearLearningLogs() handles the
-  // wipe-and-restart variant.
   restartLearningPhase() {
     this.learningConfig.learningMode = true;
     this.learningConfig.startTime = Date.now();

@@ -12,9 +12,6 @@ const { PLATFORM, commandExists } = require('./core');
 const TIMEOUT_MS = 10000;
 const MAX_BUFFER = 50 * 1024 * 1024;
 const CAMERA_DELAY_MS = 2000;
-const ANALYSIS_WIDTH = 320;
-const ANALYSIS_HEIGHT = 240;
-const FACE_DETECT_WIDTH = 640;
 const WORKER_ANALYSIS_TIMEOUT_MS = 15000;
 
 async function pathExecutable(candidate) {
@@ -46,13 +43,9 @@ async function resolveFfmpeg() {
   return null;
 }
 
-// Ordered capture candidates per platform. Each candidate:
-//   { id, bin, ext, args(outFile, delayMs, device), listCameras(), probe() }
-// probe() runs once per candidate (memoized) to decide availability.
 const FFMPEG_DSHOW_SIZE = '640x480';
 
 function commandCamDeviceArg(device) {
-  // CommandCam /devnum expects a 1-based index; named device selection uses /devname.
   if (!device) return [];
   if (/^\d+$/.test(device)) return ['/devnum', device];
   return ['/devname', device];
@@ -215,8 +208,6 @@ async function ffmpegListCameras(format) {
       const text = String(stderr || stdout || '');
       const cams = [];
       for (const line of text.split(/\r?\n/)) {
-        // ffmpeg emits device lists on stderr; video entries look like:
-        // [dshow @ ...] "Name" (video)  or  [avfoundation @ ...] [0] Name
         const dshow = line.match(/\]\s*"([^"]+)"\s*\((?:video|both)\)/i);
         const avf = line.match(/\[\d+\]\s+(.+)$/);
         if (format === 'dshow' && dshow) {
@@ -225,7 +216,6 @@ async function ffmpegListCameras(format) {
           const m = line.match(/\[\d+\]\s+(.+?)\s*\(video\)/i);
           if (m) cams.push({ id: String(cams.length), name: m[1].trim() });
         } else if (format === 'avfoundation' && avf && /\[[\d,]+\]/.test(avf[1]) === false && cams.length === 0 && line.includes('@')) {
-          // skip header lines
         }
       }
       resolve(cams);
@@ -234,7 +224,7 @@ async function ffmpegListCameras(format) {
 }
 
 const PROBE_TTL_MS = 5 * 60 * 1000;
-let probedCandidates = null; // [{candidate, available}]
+let probedCandidates = null;
 let probedAt = 0;
 let probeInFlight = null;
 
@@ -243,7 +233,6 @@ async function probeCandidate(candidate) {
   try {
     const bin = await pathExecutable(candidate.bin);
     if (!bin) return false;
-    // ffmpeg probe: run the device-list command for this platform's format
     const format = PLATFORM === 'win32' ? 'dshow' : PLATFORM === 'darwin' ? 'avfoundation' : null;
     if (format) {
       const cams = await ffmpegListCameras(format);
@@ -382,7 +371,6 @@ function captureImageBuffer(device) {
       } catch (e) {
         errors.push(`${candidate.id}: ${e.message}`);
         if (candidate.needsProbe) {
-          // ffmpeg may vanish mid-run; re-probe next cycle.
           invalidateProbeCache();
         }
       }
@@ -471,12 +459,8 @@ async function shutdownWebcamWorker() {
 }
 
 async function coreGetWebCamBrightness(opts = {}, imageBuffer) {
-
   return analyzeInWorker({
     bmpBuffer: imageBuffer,
-    faceDetectWidth: FACE_DETECT_WIDTH,
-    analysisWidth: ANALYSIS_WIDTH,
-    analysisHeight: ANALYSIS_HEIGHT,
     detectFaces: opts.detectFaces !== false,
   });
 }
