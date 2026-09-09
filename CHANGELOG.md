@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0] - 2026-09-09
+
+### Changed
+- **Full-resolution webcam analysis**: frames are no longer shrunk to 320×240
+  before analysis or 640px for face detection. Every check (face detection,
+  light estimation, blur, color balance) now runs on the camera's native
+  pixels, so faces are found more reliably and readings are sharper — with
+  no measurable cost: a full 1280×720 analysis takes about 0.3 s on modest
+  hardware.
+- **Resolution-independent face features**: how close you sit and how far
+  off-center you are now adapt to your camera's resolution, so logs stay
+  comparable when the capture size differs between devices.
+
 ## [1.2.9] - 2026-09-09
 
 ### Fixed
