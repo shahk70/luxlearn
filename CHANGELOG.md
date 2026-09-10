@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.3.4] - 2026-09-10
+
+### Fixed
+- **Linux brightness read no longer crashes**: a missing internal cache
+  variable made the brightness reading on Linux throw when the display's
+  current value couldn't be parsed, breaking adjustment cycles on xrandr
+  systems. It now falls back to the last set value (or 100%) as intended.
+- **Updater events no longer race app startup**: two internal constants
+  used by the update checker were declared after the code that uses them,
+  so an update notification arriving in the first moments after launch
+  could crash the update handlers. The constants now live at the top of
+  the module where they belong.
+- **Linux display-name safety**: display names read from xrandr are now
+  validated before being passed to shell commands, and the parser no
+  longer accepts malformed names (e.g. "connectedVPN").
+
+## Changed
+- Internal code cleanups: duplicate distance-threshold math folded into
+  one shared method, dead code removed. No behavior changes beyond the
+  fixes above.
+
 ## [1.3.3] - 2026-09-09
 
 ### Fixed
