@@ -197,13 +197,6 @@ function matVecMul(matrix, vec) {
   return out;
 }
 
-function quadraticForm(vec, matrix) {
-  const mv = matVecMul(matrix, vec);
-  let sum = 0;
-  for (let i = 0; i < vec.length; i++) sum += vec[i] * mv[i];
-  return sum;
-}
-
 function weightedRidgeRegression(rows, targets, weights, numParams, ridgeLambda) {
   const XtWX = zeroMatrix(numParams, numParams);
   const XtWy = new Array(numParams).fill(0);
@@ -1356,12 +1349,9 @@ class BrightnessManager extends EventEmitter {
     return Math.sqrt(sumSq);
   }
 
-  _getTopLogs(sortedLogIndices) {
-    const len = sortedLogIndices.length;
-    if (len === 0) return [];
-    const cfg = CONFIG.ALGORITHM;
-
+  _computeDynamicDistanceThreshold(sortedLogIndices) {
     let sum = 0, sumSq = 0;
+    const len = sortedLogIndices.length;
     for (let i = 0; i < len; i++) {
       const d = sortedLogIndices[i].distance;
       sum += d;
@@ -1369,8 +1359,15 @@ class BrightnessManager extends EventEmitter {
     }
     const meanDist = sum / len;
     const variance = Math.max(0, sumSq / len - meanDist * meanDist);
-    const stdDist = Math.sqrt(variance);
-    const dynamicThreshold = meanDist + cfg.RELEVANT_DISTANCE_STD_DEV_THRESHOLD * stdDist;
+    return meanDist + CONFIG.ALGORITHM.RELEVANT_DISTANCE_STD_DEV_THRESHOLD * Math.sqrt(variance);
+  }
+
+  _getTopLogs(sortedLogIndices) {
+    const len = sortedLogIndices.length;
+    if (len === 0) return [];
+    const cfg = CONFIG.ALGORITHM;
+
+    const dynamicThreshold = this._computeDynamicDistanceThreshold(sortedLogIndices);
 
     const relevant = [];
     for (let i = 0; i < len; i++) {
@@ -1575,16 +1572,7 @@ class BrightnessManager extends EventEmitter {
       const cfg = CONFIG.ALGORITHM;
       const nearest = sortedLogIndices[0];
       if (nearest.distance <= cfg.FALLBACK_MAX_ABSOLUTE_DISTANCE) {
-        let sum = 0, sumSq = 0;
-        for (let i = 0; i < sortedLogIndices.length; i++) {
-          const d = sortedLogIndices[i].distance;
-          sum += d;
-          sumSq += d * d;
-        }
-        const len = sortedLogIndices.length;
-        const meanDist = sum / len;
-        const stdDist = Math.sqrt(Math.max(0, sumSq / len - meanDist * meanDist));
-        const dynamicThreshold = meanDist + cfg.RELEVANT_DISTANCE_STD_DEV_THRESHOLD * stdDist;
+        const dynamicThreshold = this._computeDynamicDistanceThreshold(sortedLogIndices);
         if (nearest.distance <= dynamicThreshold) {
           return this.logs[nearest.index].brightness;
         }

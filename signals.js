@@ -730,14 +730,6 @@ async function winSet(value, opts = {}) {
   throw winUnsupportedError();
 }
 
-async function winSetWmi(clamped) {
-  await execAsync(WIN_SET_CMD_WMI(clamped));
-}
-
-async function winSetCim(clamped) {
-  await execAsync(WIN_SET_CMD_CIM(clamped));
-}
-
 const macCandidateStatus = new Map();
 
 async function resolveMacBackend(preferred) {
@@ -886,7 +878,7 @@ async function getXrandrOutputs() {
   const { stdout } = await execAsync('xrandr --current');
   const outputs = [];
   for (const line of String(stdout || '').split(/\r?\n/)) {
-    const match = line.match(/^(\S+)\s+connected/i);
+    const match = line.match(/^(\S+)\s+connected(?:\s|$)/i);
     if (match) outputs.push(match[1]);
   }
   if (outputs.length === 0) throw new Error('xrandr: no connected display output found.');
@@ -951,17 +943,16 @@ async function linuxGet() {
     }
 
     const output = await getXrandrOutputs();
-    return readXrandrBrightness(parseXrandrTargetDisplay(xrandrTargetRef.value) ?? output[0]);
+    return readXrandrBrightness(output[0]);
   } catch (err) {
     markLinuxBackendFailed(backend);
     throw err;
   }
 }
 
-const xrandrTargetRef = { value: null };
+let xrandrLastValue = null;
 
 async function linuxSet(value, opts = {}) {
-  xrandrTargetRef.value = opts.display ?? null;
   const backend = await resolveLinuxBackend();
   if (!backend) throw linuxMissingError();
 
@@ -998,6 +989,7 @@ async function linuxSet(value, opts = {}) {
     const list = targets.length > 0 ? targets : outputs;
     const normalized = Math.max(0.1, clamped / 100);
     for (const output of list) {
+      if (!/^[A-Za-z0-9._-]+$/.test(output)) continue;
       await execAsync(`xrandr --output ${output} --brightness ${normalized.toFixed(2)}`);
     }
     xrandrLastValue = clamped;

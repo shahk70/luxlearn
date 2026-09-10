@@ -998,7 +998,6 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     let lastRenderedWeights = null;
-    let lastRenderedWeightsLocale = null;
     function renderWeights(weights, interactionPair) {
         if (!elems.weightsList) return;
         const sig = JSON.stringify([weights, interactionPair, getLocale()]);

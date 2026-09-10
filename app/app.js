@@ -18,6 +18,9 @@ const { getBrightnessBackendName, getActiveWindowSafe, getPowerStatus, listDispl
 const UPDATE_STATUS_INTERVAL_MS = 5000;
 const WEATHER_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 
+const REPO_OWNER = 'shahk70';
+const REPO_NAME = 'luxlearn';
+
 let autoUpdater = null;
 try {
     const { autoUpdater: au } = require('electron-updater');
@@ -488,9 +491,6 @@ ipcMain.handle('open-settings-file', () => { shell.showItemInFolder(settingsPath
 ipcMain.handle('get-power-status', () => getPowerStatus().catch(() => null));
 ipcMain.handle('list-cameras', () => listCameras().catch(() => []));
 ipcMain.handle('list-displays', () => listDisplays().catch(() => []));
-
-const REPO_OWNER = 'shahk70';
-const REPO_NAME = 'luxlearn';
 
 const RELEASES_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // once a day

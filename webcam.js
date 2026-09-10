@@ -288,8 +288,6 @@ async function resolveCaptureBackend() {
   return candidates.length > 0 ? candidates[0] : null;
 }
 
-let captureChainError = null;
-
 async function captureWithCandidate(candidate, device) {
   const unique = crypto.randomBytes(4).toString('hex');
   const outFile = path.join(os.tmpdir(), `wc_${unique}.${candidate.ext}`);
