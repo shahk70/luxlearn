@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.4.0] - 2026-09-11
+
+### Added
+- **Raw camera support**: if your camera can stream unprocessed sensor
+  data (Bayer raw), LuxLearn now captures and analyzes it directly —
+  no auto-exposure or color processing in between. Room light is read
+  from the sensor's own green channel, which doesn't hunt or drift the
+  way the old estimate could, and every reading also records the light
+  color (color temperature) — warm lamp vs. cool daylight become
+  distinguishable signals the app learns from. Cameras that can't do
+  raw work exactly as before; nothing changes unless your camera
+  offers it.
+
+### Fixed
+- **Steadier battery readings**: on some Windows machines the battery
+  percentage flickered between 1% and full charge from one reading to
+  the next, which polluted learning. A reading now has to repeat
+  before it counts.
+- **Smoother room-light readings when you move in and out of frame**:
+  the estimate no longer jumps when face detection flickers; it glides
+  over a short window instead.
+- **Weather data now refreshes reliably**: the previous weather
+  provider stopped accepting the bundled keys, so readings went stale.
+  A free keyless provider is now tried automatically, so cloud cover
+  and sunrise/sunset stay current again.
+- **Time-of-day signals no longer freeze**: a noise filter was
+  occasionally smoothing away real clock movement, leaving
+  day-progress hints stuck. Time signals now always advance.
+
 ## [1.3.4] - 2026-09-10
 
 ### Fixed
