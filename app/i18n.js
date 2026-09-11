@@ -1552,14 +1552,14 @@ const I18N = {
     "zh": "屏幕内容"
   },
   "feat.ambientLight": {
-    "en": "Ambient light sensor",
-    "de": "Umgebungslichtsensor",
-    "fa": "سنسور نور محیط",
-    "tr": "Ortam ışığı sensörü",
-    "es": "Sensor de luz ambiental",
-    "fr": "Capteur de lumière ambiante",
-    "ru": "Датчик освещённости",
-    "zh": "环境光传感器"
+    "en": "Ambient light",
+    "de": "Umgebungslicht",
+    "fa": "نور محیط",
+    "tr": "Ortam ışığı",
+    "es": "Luz ambiental",
+    "fr": "Lumière ambiante",
+    "ru": "Освещённость",
+    "zh": "环境光"
   },
   "feat.cloud": {
     "en": "Cloud cover",
@@ -1570,6 +1570,16 @@ const I18N = {
     "fr": "Couverture nuageuse",
     "ru": "Облачность",
     "zh": "云量"
+  },
+  "feat.colorTemp": {
+    "en": "Light color temperature",
+    "de": "Farbtemperatur des Lichts",
+    "fa": "دمای رنگ نور",
+    "tr": "Işık renk sıcaklığı",
+    "es": "Temperatura de color de la luz",
+    "fr": "Température de couleur de la lumière",
+    "ru": "Цветовая температура света",
+    "zh": "光色温"
   },
   "feat.dayLight": {
     "en": "Time of day",

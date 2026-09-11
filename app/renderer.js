@@ -985,6 +985,7 @@ window.addEventListener('DOMContentLoaded', () => {
         lightSourceCount: 'feat.lightSources',
         visualConfidence: 'feat.imageQuality',
         batteryLevel: 'feat.batteryLevel',
+        colorTempCct: 'feat.colorTemp',
         app: 'feat.activeApp',
         lightDirection: 'feat.lightDirection',
         powerSource: 'feat.powerSource',
