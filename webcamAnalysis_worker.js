@@ -274,8 +274,13 @@ function analyzeLightingOpencv(grayMat, stats) {
       }
     }
 
+    // Weak blobs (below significance area) are excluded from direction so a
+    // few noisy pixels don't swing the centroid; count still reports all
+    // significant blobs. Strength = share of frame area covered by bright
+    // blobs — tiny coverage means the direction reading is unreliable.
     let direction = 'Front/Balanced';
     let directionDetail = null;
+    let directionStrength = 0;
     if (blobs.length > 0) {
       let areaTotal = 0;
       let cxSum = 0, cySum = 0;
@@ -285,6 +290,7 @@ function analyzeLightingOpencv(grayMat, stats) {
         cySum += cy * b.area;
         areaTotal += b.area;
       }
+      directionStrength = Math.round((areaTotal / (width * height)) * 1000) / 1000;
       const relX = cxSum / areaTotal / width;
       const relY = cySum / areaTotal / height;
       const dx = Math.abs(relX - 0.5);
@@ -300,7 +306,7 @@ function analyzeLightingOpencv(grayMat, stats) {
       }
     }
 
-    return { count: blobs.length, direction, directionDetail, sources: blobs };
+    return { count: blobs.length, direction, directionDetail, directionStrength, sources: blobs };
 
   } finally {
     threshMat.delete();
@@ -484,6 +490,7 @@ function analyzeFrame({ buffer, width, height, detectFaces }) {
       lighting: {
         direction: lighting.direction,
         directionDetail: lighting.directionDetail,
+        directionStrength: lighting.directionStrength,
         sourceCount: lighting.count
       },
       faces: {

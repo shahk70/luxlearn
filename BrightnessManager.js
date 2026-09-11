@@ -44,7 +44,10 @@ const CONFIG = Object.freeze({
     RECENCY_WINDOW_MINUTES: 30,
     MIN_STAT_COUNT_FOR_DISTANCE: 5,
     MANUAL_CHANGE_CONFIRM_DELAY_MS: 1500,
-    MANUAL_LOG_REUSE_WINDOW_MS: 90000,
+    MANUAL_LOG_REUSE_WINDOW_MS: 30000,
+    SLOW_SIGNAL_STALENESS_MS: 2 * 60 * 60 * 1000,
+    AMBIENT_REGIME_HOLD_MS: 90 * 1000,
+    BATTERY_VOTE_WINDOW_MS: 90 * 1000,
     FACE_CHECK_INTERVAL_LIGHT: 5,
     SLOW_SIGNAL_INTERVAL_MS: 10 * 60 * 1000,
     POLL_INTERVAL_FLOOR_SEC: 3,
@@ -107,9 +110,14 @@ function setFeatureValue(state, key, value) {
   }
 }
 
-const FEATURE_NOISE_FLOOR = 0.1;
-const MAD_NOISE_MULTIPLIER = 1.5;
+const FEATURE_NOISE_FLOOR = 0.04;
+const MAD_NOISE_MULTIPLIER = 1.0;
 const MIN_SAMPLES_FOR_NOISE_ESTIMATE = 5;
+const FEATURE_EPS_CEILING = 0.5;
+const AMBIENT_MEDIAN_WINDOW = 3;
+// Time always advances — treating its drift as noise freezes dayLight/sin/cos at stale values.
+const TIME_FEATURE_KEYS = new Set(['dayLight', 'timeSin', 'timeCos']);
+const LOW_BATTERY_SUSPECT_PCT = 20;
 
 function arrayMedian(arr) {
   if (arr.length === 0) return 0;
@@ -238,6 +246,10 @@ class BrightnessManager extends EventEmitter {
   #lightMode = false;
   #clearResetCyclePending = false;
   #noiseStats = new Map();
+  #ambientMedianWindow = [];
+  #ambientRegimeVote = null;
+  #ambientRegimeFreshAt = 0;
+  #lastStablePowerInfo = null;
   #cycleDurations = [];
   #faceCheckCounter = 0;
   #cachedFaceData = null;
@@ -946,6 +958,8 @@ class BrightnessManager extends EventEmitter {
       faceCenterDeviation: parse(entry.faceCenterDeviation) ?? 0,
       lightSourceCount: parse(entry.lightSourceCount) ?? 0,
       lightDirection: entry.lightDirection ?? 'Balanced',
+      lightDirectionDetail: (detail => detail && Number.isFinite(detail.offset) ? detail : null)(entry.lightDirectionDetail),
+      lightDirectionStrength: parse(entry.lightDirectionStrength),
       visualConfidence: parse(entry.visualConfidence),
       app: entry.app ?? entry.currentWindow ?? null,
       powerSource: ['AC', 'battery', 'unknown'].includes(entry.powerSource) ? entry.powerSource : 'unknown',
@@ -1006,12 +1020,13 @@ class BrightnessManager extends EventEmitter {
 
     const screen = screenOutcome.status === 'fulfilled' ? screenOutcome.value : null;
     const app = appOutcome.status === 'fulfilled' ? appOutcome.value : null;
-    let ambientLightLuxRaw = alsOutcome.status === 'fulfilled' ? alsOutcome.value : null;
+    const sensorLux = alsOutcome.status === 'fulfilled' ? alsOutcome.value : null;
+    let ambientLightLuxRaw = Number.isFinite(sensorLux) ? sensorLux : null;
     const powerInfo = powerOutcome.status === 'fulfilled' ? powerOutcome.value : null;
     const nightLightOn = nightLightOutcome.status === 'fulfilled' ? nightLightOutcome.value : null;
     const validWebcam = webcamResult && !webcamResult.error;
 
-    let ambientLightSource = ambientLightLuxRaw !== null && ambientLightLuxRaw !== undefined ? 'sensor' : 'none';
+    let ambientLightSource = ambientLightLuxRaw !== null ? 'sensor' : 'none';
     let ambientLightDetail = null;
     const faceDetected = validWebcam && webcamResult?.faces && webcamResult.faces.detected === true;
     const faceMeanForLux = validWebcam && webcamResult?.faces && typeof webcamResult.faces.faceBrightness === 'number'
@@ -1033,6 +1048,10 @@ class BrightnessManager extends EventEmitter {
       }
       if (ambientLightLuxRaw !== null) ambientLightSource = 'webcam';
     }
+    // Face/scene regimes disagree systematically (scene reads high).
+    // Keep the raw lux estimate for forensics; the trailing median below
+    // steadies the learned feature against one-cycle regime flicker.
+    const rawAmbientLux = ambientLightLuxRaw;
     if (readSlowSignals) {
       this.#cachedPowerInfo = powerInfo;
       this.#cachedNightLight = nightLightOn;
@@ -1052,7 +1071,7 @@ class BrightnessManager extends EventEmitter {
     let webcamScore = null;
     screenVal = this.#applyLogScale(screenVal);
     cloudVal = this.#applyLogScale(cloudVal);
-    const ambientLightVal = this.#applyLogScale(ambientLightLuxRaw);
+    let ambientLightVal = this.#applyLogScale(ambientLightLuxRaw);
 
     let faceData = validWebcam ? webcamResult.faces : null;
     const lightingData = validWebcam ? webcamResult.lighting : null;
@@ -1102,6 +1121,18 @@ class BrightnessManager extends EventEmitter {
       visualConfidence = Math.max(0, exposure - noise + Math.round(sharpness / 20));
     }
 
+    // Trailing median over ambient readings so a one-cycle face/scene
+    // flicker can't step the learned ambient feature. Raw value still
+    // exported as ambientLightLuxRaw for forensics.
+    if (typeof ambientLightVal === 'number' && Number.isFinite(ambientLightVal)) {
+      this.#ambientMedianWindow.push(ambientLightVal);
+      while (this.#ambientMedianWindow.length > AMBIENT_MEDIAN_WINDOW) this.#ambientMedianWindow.shift();
+      if (this.#ambientMedianWindow.length >= AMBIENT_MEDIAN_WINDOW) {
+        const medianAmbient = this._medianAmbientLight();
+        if (medianAmbient !== null) ambientLightVal = medianAmbient;
+      }
+    }
+
     return {
       webcamScore,
       faceCount,
@@ -1111,16 +1142,17 @@ class BrightnessManager extends EventEmitter {
       lightSourceCount: lightingData?.sourceCount ?? null,
       lightDirection: lightingData?.direction ?? null,
       lightDirectionDetail: lightingData?.directionDetail ?? null,
+      lightDirectionStrength: lightingData?.directionStrength ?? null,
       visualConfidence,
       screen: screenVal,
       app,
       cloud: cloudVal,
       ambientLight: ambientLightVal,
-      ambientLightLuxRaw,
+      ambientLightLuxRaw: rawAmbientLux,
       ambientLightSource,
       ambientLightDetail,
       powerSource: powerInfo && powerInfo.onBattery !== null ? (powerInfo.onBattery ? 'battery' : 'AC') : 'unknown',
-      batteryLevel: batteryScarcity(powerInfo?.batteryPercent ?? null),
+      batteryLevel: this._resolveStableBatteryLevel(powerInfo?.batteryPercent ?? null),
       nightLight: nightLightOn === null || nightLightOn === undefined ? 'unknown' : (nightLightOn ? 'on' : 'off'),
       timeFeatures: this._getTimeFeatures(Date.now()),
     };
@@ -1389,7 +1421,64 @@ class BrightnessManager extends EventEmitter {
     const median = sorted[Math.floor(sorted.length / 2)];
     const mad = arrayMedian(sorted.map((d) => Math.abs(d - median)));
     const eps = MAD_NOISE_MULTIPLIER * mad;
-    return Math.max(FEATURE_NOISE_FLOOR, eps);
+    return Math.min(FEATURE_EPS_CEILING, Math.max(FEATURE_NOISE_FLOOR, eps));
+  }
+
+  // Median of the trailing ambientLight window: a brief face/scene flicker
+  // no longer steps the learned ambient feature between regimes.
+  _medianAmbientLight() {
+    const values = this.#ambientMedianWindow
+      .map((entry) => entry?.ambientLight)
+      .filter((v) => typeof v === 'number' && Number.isFinite(v));
+    if (values.length === 0) return null;
+    return arrayMedian(values);
+  }
+
+  // A consistent low battery reading votes toward accepting it; the first
+  // one is treated as a Win32_Battery glitch and holds the previous value
+  // instead of poisoning the distance metric with a 1 ↔ 0.02 swing.
+  #registerBatteryVote(rawPercent) {
+    if (typeof rawPercent !== 'number' || !Number.isFinite(rawPercent)) return null;
+    const now = Date.now();
+    const sameAsBefore =
+      this.#lastStablePowerInfo &&
+      this.#lastStablePowerInfo.raw === rawPercent &&
+      now - this.#lastStablePowerInfo.at < CONFIG.ALGORITHM.BATTERY_VOTE_WINDOW_MS;
+    if (sameAsBefore) {
+      this.#lastStablePowerInfo.count += 1;
+      this.#lastStablePowerInfo.at = now;
+      return this.#lastStablePowerInfo.count >= 2 ? this.#lastStablePowerInfo.value : null;
+    }
+    const value = batteryScarcity(rawPercent);
+    this.#lastStablePowerInfo = { raw: rawPercent, value, at: now, count: 1 };
+    return null;
+  }
+
+  // Prefer the confirmed-stable battery reading; transient single-digit
+  // percents on AC stay out of the learned feature until a second vote.
+  _resolveStableBatteryLevel(rawPercent) {
+    const now = Date.now();
+    if (
+      this.#lastStablePowerInfo &&
+      now - this.#lastStablePowerInfo.at > CONFIG.ALGORITHM.SLOW_SIGNAL_STALENESS_MS
+    ) {
+      this.#lastStablePowerInfo = null;
+    }
+    if (typeof rawPercent !== 'number' || !Number.isFinite(rawPercent)) return null;
+    if (rawPercent > LOW_BATTERY_SUSPECT_PCT) {
+      const accepted = batteryScarcity(rawPercent);
+      this.#lastStablePowerInfo = { raw: rawPercent, value: accepted, at: now, count: 2 };
+      return accepted;
+    }
+    const vote = this.#registerBatteryVote(rawPercent);
+    if (vote !== null) return vote;
+    const fallback =
+      this.#lastAmbientState !== null && typeof this.#lastAmbientState?.batteryLevel === 'number'
+        ? this.#lastAmbientState.batteryLevel
+        : this.#cachedPowerInfo?.batteryPercent !== undefined
+          ? batteryScarcity(this.#cachedPowerInfo.batteryPercent ?? null)
+          : null;
+    return fallback;
   }
 
   async _logChange(brightness, type, ambientStateOverride = null) {
@@ -1407,6 +1496,14 @@ class BrightnessManager extends EventEmitter {
         const cur = FEATURE_DEFINITIONS[key].accessor(ambientState);
         const before = FEATURE_DEFINITIONS[key].accessor(prev);
         if (cur == null || before == null) continue;
+
+        // Time features always advance — the smoothing below would otherwise
+        // freeze dayLight/sin/cos at stale values (observed in live logs).
+        if (TIME_FEATURE_KEYS.has(key)) {
+          const delta = cur - before;
+          if (Math.abs(delta) >= 1e-9) changedFeatures.push(key);
+          continue;
+        }
 
         const eps = Math.max(
           this.#getNoiseEpsilon(key),
@@ -1736,7 +1833,7 @@ class BrightnessManager extends EventEmitter {
       const s = v == null ? '' : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const keys = ['timestamp', 'brightness', 'type', 'webcamScore', 'screen', 'cloud', 'ambientLight', 'ambientLightLuxRaw', 'ambientLightSource', 'ambientLightDetail', 'faceCount', 'faceBrightness', 'faceProximity', 'faceCenterDeviation', 'lightSourceCount', 'lightDirection', 'visualConfidence', 'app', 'powerSource', 'batteryLevel', 'nightLight'];
+    const keys = ['timestamp', 'brightness', 'type', 'webcamScore', 'screen', 'cloud', 'ambientLight', 'ambientLightLuxRaw', 'ambientLightSource', 'ambientLightDetail', 'faceCount', 'faceBrightness', 'faceProximity', 'faceCenterDeviation', 'lightSourceCount', 'lightDirection', 'lightDirectionDetail', 'lightDirectionStrength', 'visualConfidence', 'app', 'powerSource', 'batteryLevel', 'nightLight'];
     const lines = [keys.join(',')];
     for (const log of this.logs) {
       const row = keys.map((k) => {

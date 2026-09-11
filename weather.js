@@ -4,7 +4,8 @@ const SunCalc = require('suncalc');
 const { loadJSON, retry, WEATHER_JSON_PATH, DEFAULT_SUNRISE, DEFAULT_SUNSET, PLATFORM, execPowerShell } = require('./core');
 
 const CONFIG = {
-    API_URL: 'https://api.weatherapi.com/v1/forecast.json',
+    WEATHERAPI_URL: 'https://api.weatherapi.com/v1/forecast.json',
+    OPEN_METEO_URL: 'https://api.open-meteo.com/v1/forecast',
     IP_GEOLOCATION_URL: 'https://ipapi.co/json/',
     DEFAULT_LOCATION: { latitude: 0, longitude: 0 },
     LOCATION_CACHE_TTL_MS: 6 * 60 * 60 * 1000,
@@ -12,6 +13,7 @@ const CONFIG = {
     POWERSHELL_TIMEOUT_MS: 10000,
     API_TIMEOUT_MS: 8000,
     IP_GEOLOCATION_TIMEOUT_MS: 5000,
+    DAILY_WEATHER_TTL_MS: 3600000, // 1 hour
 };
 
 const BUNDLED_PUBLIC_KEYS = '6St40m8Siqww0dlFI1g7FqVKGP8A8lCi,cuNEvvF9R6nrkgfxtyb6i4ESJn8Ni8b6,cnI9GWvp7hOzR7qPI9Z3uQpREHRKn6jb,5KrZFlv6DbWosTDfrcSv1F8s5bLZdNf0,NcoH9JHLho0vPsqap57C2aAdO2HtcaVA,gI4KPjPSN04O0kiuk4O7gNkysjWfF2fI'
@@ -189,8 +191,29 @@ async function fetchForecastWithKey(apiKey, query) {
             alerts: 'no'
         });
 
-        const res = await fetch(`${CONFIG.API_URL}?${params}`, { signal: controller.signal });
+        const res = await fetch(`${CONFIG.WEATHERAPI_URL}?${params}`, { signal: controller.signal });
         return { res };
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function fetchFromOpenMeteo(latitude, longitude) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CONFIG.API_TIMEOUT_MS);
+
+    try {
+        const params = new URLSearchParams({
+            latitude: String(latitude),
+            longitude: String(longitude),
+            current: 'cloud_cover',
+            timezone: 'auto',
+            forecast_days: '1',
+        });
+
+        const res = await fetch(`${CONFIG.OPEN_METEO_URL}?${params}`, { signal: controller.signal });
+        if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
+        return await res.json();
     } finally {
         clearTimeout(timeout);
     }
@@ -319,19 +342,61 @@ async function updateDailyWeatherInfo(userSettings = {}) {
             city: 'Custom',
             latitude: null,
             longitude: null,
-            lastUpdated: new Date().toISOString(),
+            lastUpdated: now.toISOString(),
         };
     }
 
+    // Try sources in order: WeatherAPI (with keys), Open-Meteo (free, no key), cached suncalc, defaults
+    let result = null;
+    let source = 'unknown';
+
     try {
-        return { isCustom: false, ...(await retry(fetchFromApi, 2, 500)) };
+        result = await retry(fetchFromApi, 2, 500);
+        source = 'weatherapi';
     } catch (e) {
+        console.debug('WeatherAPI failed:', e.message);
+    }
+
+    if (!result) {
         try {
-            return { isCustom: false, ...(await calculateFromCache()) };
-        } catch (e2) {
-            return getFallbackTimes();
+            const { latitude, longitude } = await findLocation();
+            if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+                const om = await fetchFromOpenMeteo(latitude, longitude);
+                const cloud = om?.current?.cloud_cover ?? 0;
+                const times = SunCalc.getTimes(new Date(), latitude, longitude);
+                result = {
+                    sunrise: times.sunrise.toISOString(),
+                    sunset: times.sunset.toISOString(),
+                    cloud: typeof cloud === 'number' ? cloud : 0,
+                    city: 'Open-Meteo',
+                    latitude,
+                    longitude,
+                    tz_id: om?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    lastUpdated: new Date().toISOString(),
+                };
+                source = 'open-meteo';
+            }
+        } catch (e) {
+            console.debug('Open-Meteo failed:', e.message);
         }
     }
+
+    if (!result) {
+        try {
+            result = await calculateFromCache();
+            source = 'cached-suncalc';
+        } catch (e) {
+            console.debug('Cached suncalc failed:', e.message);
+        }
+    }
+
+    if (!result) {
+        result = getFallbackTimes();
+        source = 'default';
+    }
+
+    result._source = source;
+    return result;
 }
 
 module.exports = { updateDailyWeatherInfo };
