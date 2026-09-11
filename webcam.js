@@ -45,6 +45,158 @@ async function resolveFfmpeg() {
 
 const FFMPEG_DSHOW_SIZE = '640x480';
 
+const BAYER_FORMATS = [
+  'bayer_rggb8',
+  'bayer_bggr8',
+  'bayer_grbg8',
+  'bayer_gbrg8',
+  'bayer_rggb10',
+  'bayer_bggr10',
+  'bayer_grbg10',
+  'bayer_gbrg10',
+  'bayer_rggb12',
+  'bayer_bggr12',
+  'bayer_grbg12',
+  'bayer_gbrg12'
+];
+
+// Preference order: 8-bit (smallest, universally decodable), common patterns first.
+const BAYER_FORMAT_RANK = (fmt) => {
+  const depth = fmt.endsWith('8') ? 0 : fmt.endsWith('10') ? 1 : 2;
+  const pattern = fmt.includes('rggb') ? 0 : fmt.includes('grbg') ? 1 : fmt.includes('gbrg') ? 2 : 3;
+  return depth * 10 + pattern;
+};
+
+// ffmpeg prints supported raw formats (and their frame sizes) on stderr:
+//   v4l2:  "bayer_rggb8 640x480 30/1 ..."   dshow: "Format: bayer_rggb8 (640x480)"
+function parseRawFormatLines(text) {
+  const found = new Map(); // format -> Set of 'WxH'
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const fmt = BAYER_FORMATS.find((bf) => line.includes(bf));
+    if (!fmt) continue;
+    const sizes = line.match(/\b(\d{3,5})x(\d{3,5})\b/g) || [];
+    if (!found.has(fmt)) found.set(fmt, new Set());
+    for (const s of sizes) found.get(fmt).add(s);
+  }
+  return found;
+}
+
+async function ffmpegListRawFormats(device) {
+  const bin = await resolveFfmpeg();
+  if (!bin) return [];
+  return new Promise((resolve) => {
+    const format = PLATFORM === 'win32' ? 'dshow' : PLATFORM === 'darwin' ? 'avfoundation' : 'v4l2';
+    const args = format === 'dshow'
+      ? ['-hide_banner', '-list_formats', 'all', '-f', 'dshow', '-i', device || 'video=0']
+      : format === 'avfoundation'
+        ? ['-hide_banner', '-list_formats', 'all', '-f', 'avfoundation', '-i', device || '0']
+        : ['-hide_banner', '-list_formats', 'all', '-f', 'v4l2', '-i', device || '/dev/video0'];
+    execFile(bin, args, { timeout: TIMEOUT_MS, windowsHide: true, maxBuffer: MAX_BUFFER }, (err, stdout, stderr) => {
+      resolve(parseRawFormatLines(stderr || stdout));
+    });
+  });
+}
+
+function pickRawCapture(formatMap) {
+  if (!formatMap || formatMap.size === 0) return null;
+  const pickSize = (sizes) => {
+    const parsed = [...sizes]
+      .map((s) => s.match(/^(\d+)x(\d+)$/))
+      .filter(Boolean)
+      .map((m) => ({ w: Number(m[1]), h: Number(m[2]) }))
+      .filter(({ w, h }) => w >= 320 && h >= 240 && w * h <= 1920 * 1080);
+    if (parsed.length === 0) return null;
+    // Prefer the size closest to 640x480; keep bytes/pixel small for probe speed.
+    parsed.sort((a, b) => Math.abs(a.w * a.h - 640 * 480) - Math.abs(b.w * b.h - 640 * 480));
+    return `${parsed[0].w}x${parsed[0].h}`;
+  };
+  const formats = [...formatMap.keys()].sort((a, b) => BAYER_FORMAT_RANK(a) - BAYER_FORMAT_RANK(b));
+  for (const fmt of formats) {
+    const size = pickSize(formatMap.get(fmt));
+    if (size) return { format: fmt, size };
+  }
+  return null;
+}
+
+// Device -> { raw: {format,size} | null, at } — raw capability is a device
+// property; probe once per cache window like the backend availability probe.
+const RAW_PROBE_TTL_MS = 5 * 60 * 1000;
+const rawCapabilityCache = new Map();
+
+async function resolveRawCapability(device) {
+  const key = device || '__default__';
+  const cached = rawCapabilityCache.get(key);
+  if (cached && Date.now() - cached.at < RAW_PROBE_TTL_MS) return cached.raw;
+  const bin = await resolveFfmpeg();
+  let raw = null;
+  if (bin) {
+    try {
+      const formatMap = await ffmpegListRawFormats(device);
+      raw = pickRawCapture(formatMap);
+    } catch { raw = null; }
+  }
+  rawCapabilityCache.set(key, { raw, at: Date.now() });
+  return raw;
+}
+
+function invalidateRawProbe() {
+  rawCapabilityCache.clear();
+}
+
+async function captureRawFrame(device) {
+  const rawCap = await resolveRawCapability(device);
+  if (!rawCap) return null;
+  const bin = await resolveFfmpeg();
+  if (!bin) return null;
+
+  const unique = crypto.randomBytes(4).toString('hex');
+  const outFile = path.join(os.tmpdir(), `wc_raw_${unique}.raw`);
+  const inputFormat = PLATFORM === 'win32' ? 'dshow' : PLATFORM === 'darwin' ? 'avfoundation' : 'v4l2';
+  const [w, h] = rawCap.size.split('x').map(Number);
+
+  try {
+    await new Promise((resolve, reject) => {
+      const args = [
+        '-hide_banner', '-loglevel', 'error',
+        '-f', inputFormat,
+        '-input_format', rawCap.format,
+        '-video_size', rawCap.size,
+        ...ffmpegDeviceInputTail(device),
+        '-frames:v', '1',
+        '-f', 'rawvideo',
+        '-pix_fmt', rawCap.format,
+        '-y', outFile,
+      ];
+      execFile(bin, args, { timeout: TIMEOUT_MS, maxBuffer: MAX_BUFFER, windowsHide: true }, (error) => {
+        if (error) {
+          if (fs.existsSync(outFile)) resolve();
+          else reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
+    if (!fs.existsSync(outFile)) throw new Error('raw frame file was not created');
+    const stats = await fs.promises.stat(outFile);
+    const expectedBytes = w * h * (rawCap.format.endsWith('8') ? 1 : 2);
+    if (stats.size < expectedBytes) throw new Error(`raw frame truncated (${stats.size} < ${expectedBytes} bytes)`);
+
+    const buf = await fs.promises.readFile(outFile);
+    const pattern = (rawCap.format.match(/bayer_(\w{4})/) || [])[1] || 'rggb';
+    const bitDepth = rawCap.format.endsWith('8') ? 8 : rawCap.format.endsWith('10') ? 10 : 12;
+    return { buffer: buf, width: w, height: h, pattern, bitDepth };
+  } catch (e) {
+    // A device that advertised Bayer but fails to stream it shouldn't be
+    // re-probed every cycle; the next probe comes after the TTL or a backend change.
+    if (e.message && /truncated|not created|Error/i.test(e.message)) {
+      rawCapabilityCache.set(device || '__default__', { raw: null, at: Date.now() });
+    }
+    return null;
+  } finally {
+    fs.promises.unlink(outFile).catch(() => { });
+  }
+}
+
 function commandCamDeviceArg(device) {
   if (!device) return [];
   if (/^\d+$/.test(device)) return ['/devnum', device];
@@ -60,6 +212,18 @@ function ffmpegDeviceInput(device) {
     return device ? ['-f', 'avfoundation', '-i', device] : ['-f', 'avfoundation', '-i', '0'];
   }
   return device ? ['-f', 'v4l2', '-video_size', FFMPEG_DSHOW_SIZE, '-i', device] : ['-f', 'v4l2', '-video_size', FFMPEG_DSHOW_SIZE, '-i', '/dev/video0'];
+}
+
+// Same device selector as ffmpegDeviceInput but without the size/input flags,
+// for callers that pass their own pixels/format/size first.
+function ffmpegDeviceInputTail(device) {
+  if (PLATFORM === 'win32') {
+    return device ? ['-i', `video=${device}`] : ['-i', 'video=0'];
+  }
+  if (PLATFORM === 'darwin') {
+    return device ? ['-i', device] : ['-i', '0'];
+  }
+  return device ? ['-i', device] : ['-i', '/dev/video0'];
 }
 
 function buildCandidateList() {
@@ -465,6 +629,31 @@ async function coreGetWebCamBrightness(opts = {}, imageBuffer) {
 
 let inFlightCapture = null;
 
+// Raw path: capture a Bayer frame, hand it to the worker for demosaic +
+// analysis. Returns { result, mode: 'raw' } on success, null when the
+// device has no Bayer capability or the capture failed (caller then uses
+// the processed path).
+async function tryRawCapture(opts = {}) {
+  if (PLATFORM === 'darwin') return null;
+  const rawCap = await resolveRawCapability(opts.device);
+  if (!rawCap) return null;
+  try {
+    const frame = await captureRawFrame(opts.device);
+    if (!frame) return null;
+    const result = await analyzeInWorker({
+      bayerBuffer: frame.buffer,
+      width: frame.width,
+      height: frame.height,
+      bayerPattern: frame.pattern,
+      bayerBitDepth: frame.bitDepth,
+      detectFaces: opts.detectFaces !== false,
+    });
+    return { result, mode: 'raw' };
+  } catch {
+    return null;
+  }
+}
+
 function getWebCamBrightness(opts = {}) {
   if (inFlightCapture) return inFlightCapture;
 
@@ -478,6 +667,10 @@ function getWebCamBrightness(opts = {}) {
           error: true
         };
       }
+      // Prefer a Bayer raw frame when the device streams one; its channel
+      // means and color temperature come straight from the sensor.
+      const rawAttempt = await tryRawCapture(opts);
+      if (rawAttempt) return rawAttempt.result;
       const imageBuffer = await captureImageBuffer(opts.device);
       return await coreGetWebCamBrightness(opts, imageBuffer);
     } catch (err) {

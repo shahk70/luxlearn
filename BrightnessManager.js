@@ -77,6 +77,7 @@ const FEATURE_DEFINITIONS = {
   lightSourceCount: { accessor: (s) => s?.lightSourceCount, type: 'numeric' },
   visualConfidence: { accessor: (s) => s?.visualConfidence, type: 'numeric' },
   batteryLevel: { accessor: (s) => s?.batteryLevel, type: 'numeric' },
+  colorTempCct: { accessor: (s) => s?.colorTempCct, type: 'numeric' },
   app: { accessor: (s) => s?.app, type: 'categorical' },
   lightDirection: { accessor: (s) => s?.lightDirection, type: 'categorical' },
   powerSource: { accessor: (s) => s?.powerSource, type: 'categorical' },
@@ -960,6 +961,7 @@ class BrightnessManager extends EventEmitter {
       lightDirection: entry.lightDirection ?? 'Balanced',
       lightDirectionDetail: (detail => detail && Number.isFinite(detail.offset) ? detail : null)(entry.lightDirectionDetail),
       lightDirectionStrength: parse(entry.lightDirectionStrength),
+      colorTempCct: parse(entry.colorTempCct),
       visualConfidence: parse(entry.visualConfidence),
       app: entry.app ?? entry.currentWindow ?? null,
       powerSource: ['AC', 'battery', 'unknown'].includes(entry.powerSource) ? entry.powerSource : 'unknown',
@@ -1033,13 +1035,24 @@ class BrightnessManager extends EventEmitter {
       ? webcamResult.faces.faceBrightness
       : null;
     const statsData = validWebcam ? webcamResult.stats : null;
+    // Raw Bayer frames carry true sensor-referred channel means and CCT;
+    // the lux estimate from them needs no AE clamp since exposure is not
+    // auto-adjusted to the scene (values are absolute, not re-metered).
+    const rawStats = validWebcam ? webcamResult.raw : null;
     const effectiveExposure = (statsData && typeof statsData.exposure === 'number')
       ? statsData.exposure
         + (typeof statsData.clippedWhitesPct === 'number' ? statsData.clippedWhitesPct : 0) * 0.6
         - (typeof statsData.crushedBlacksPct === 'number' ? statsData.crushedBlacksPct : 0) * 0.8
       : null;
     if (ambientLightLuxRaw == null) {
-      if (faceDetected && faceMeanForLux !== null) {
+      if (rawStats && Number.isFinite(rawStats.rawMeanG)) {
+        // Green-channel sensor mean of the un-demosaiced mosaic: the closest
+        // thing to a luminance reading the sensor offers, untouched by AE
+        // re-metering. Scaled with the same 78-anchor power law as the
+        // processed path; no clamp because there is no AE to fight.
+        ambientLightLuxRaw = faceLuxEstimate(rawStats.rawMeanG);
+        ambientLightDetail = 'raw';
+      } else if (faceDetected && faceMeanForLux !== null) {
         ambientLightLuxRaw = faceLuxEstimate(Math.max(20, Math.min(160, faceMeanForLux)));
         ambientLightDetail = 'face';
       } else if (Number.isFinite(effectiveExposure)) {
@@ -1151,6 +1164,7 @@ class BrightnessManager extends EventEmitter {
       ambientLightLuxRaw: rawAmbientLux,
       ambientLightSource,
       ambientLightDetail,
+      colorTempCct: rawStats?.colorTempCct ?? null,
       powerSource: powerInfo && powerInfo.onBattery !== null ? (powerInfo.onBattery ? 'battery' : 'AC') : 'unknown',
       batteryLevel: this._resolveStableBatteryLevel(powerInfo?.batteryPercent ?? null),
       nightLight: nightLightOn === null || nightLightOn === undefined ? 'unknown' : (nightLightOn ? 'on' : 'off'),
@@ -1833,7 +1847,7 @@ class BrightnessManager extends EventEmitter {
       const s = v == null ? '' : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const keys = ['timestamp', 'brightness', 'type', 'webcamScore', 'screen', 'cloud', 'ambientLight', 'ambientLightLuxRaw', 'ambientLightSource', 'ambientLightDetail', 'faceCount', 'faceBrightness', 'faceProximity', 'faceCenterDeviation', 'lightSourceCount', 'lightDirection', 'lightDirectionDetail', 'lightDirectionStrength', 'visualConfidence', 'app', 'powerSource', 'batteryLevel', 'nightLight'];
+    const keys = ['timestamp', 'brightness', 'type', 'webcamScore', 'screen', 'cloud', 'ambientLight', 'ambientLightLuxRaw', 'ambientLightSource', 'ambientLightDetail', 'colorTempCct', 'faceCount', 'faceBrightness', 'faceProximity', 'faceCenterDeviation', 'lightSourceCount', 'lightDirection', 'lightDirectionDetail', 'lightDirectionStrength', 'visualConfidence', 'app', 'powerSource', 'batteryLevel', 'nightLight'];
     const lines = [keys.join(',')];
     for (const log of this.logs) {
       const row = keys.map((k) => {
