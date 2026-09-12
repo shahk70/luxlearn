@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.4.1] - 2026-09-12
+
+### Fixed
+- **Start-with-Windows no longer duplicates itself**: the app registered
+  its startup entry under a different internal name than the installer
+  used, so a second entry appeared (and came back after every update).
+  Both now agree on one entry, and any leftover duplicates from older
+  installs are cleaned up automatically on the next start and the next
+  install.
+- **"Pin to taskbar" checkbox now does something**: it previously
+  called a Windows function that modern Windows silently ignores, so
+  nothing ever happened. There is no supported way for an installer to
+  pin silently — checking the box now makes the app show a one-time
+  note on next start explaining how to pin it yourself (right-click the
+  running icon → Pin to taskbar).
+- **Learning panel labels**: "Ambient light sensor" is now just
+  "Ambient light" — on machines without a hardware light sensor that
+  reading has always been a camera estimate, and the label implied
+  hardware you don't have. The new light-color reading also has a
+  proper name in all languages.
+
 ## [1.4.0] - 2026-09-11
 
 ### Added
