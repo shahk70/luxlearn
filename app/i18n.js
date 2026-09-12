@@ -821,6 +821,436 @@ const I18N = {
     "fa": "کاهش",
     "tr": "Azalt"
   },
+  "common.minimize": {
+    "en": "Minimize",
+    "de": "Minimieren",
+    "fa": "کوچک‌سازی",
+    "tr": "Küçült",
+    "es": "Minimizar",
+    "fr": "Réduire",
+    "ru": "Свернуть",
+    "zh": "最小化"
+  },
+  "common.maximize": {
+    "en": "Maximize",
+    "de": "Maximieren",
+    "fa": "بزرگ‌نمایی",
+    "tr": "Büyüt",
+    "es": "Maximizar",
+    "fr": "Agrandir",
+    "ru": "Развернуть",
+    "zh": "最大化"
+  },
+  "common.hideToTray": {
+    "en": "Hide to tray",
+    "de": "In Infobereich ausblenden",
+    "fa": "مخفی‌سازی در سینی",
+    "tr": "Sistem tepsisine gizle",
+    "es": "Ocultar en la bandeja",
+    "fr": "Masquer dans la barre d'état",
+    "ru": "Свернуть в трей",
+    "zh": "隐藏到通知区域"
+  },
+  "common.close": {
+    "en": "Close",
+    "de": "Schließen",
+    "fa": "بستن",
+    "tr": "Kapat",
+    "es": "Cerrar",
+    "fr": "Fermer",
+    "ru": "Закрыть",
+    "zh": "关闭"
+  },
+  "common.language": {
+    "en": "Language",
+    "de": "Sprache",
+    "fa": "زبان",
+    "tr": "Dil",
+    "es": "Idioma",
+    "fr": "Langue",
+    "ru": "Язык",
+    "zh": "语言"
+  },
+  "common.camera": {
+    "en": "Camera",
+    "de": "Kamera",
+    "fa": "دوربین",
+    "tr": "Kamera",
+    "es": "Cámara",
+    "fr": "Caméra",
+    "ru": "Камера",
+    "zh": "摄像头"
+  },
+  "common.display": {
+    "en": "Display",
+    "de": "Anzeige",
+    "fa": "نمایشگر",
+    "tr": "Ekran",
+    "es": "Pantalla",
+    "fr": "Écran",
+    "ru": "Дисплей",
+    "zh": "显示器"
+  },
+  "common.copyAddress": {
+    "en": "Copy address",
+    "de": "Adresse kopieren",
+    "fa": "کپی نشانی",
+    "tr": "Adresi kopyala",
+    "es": "Copiar dirección",
+    "fr": "Copier l'adresse",
+    "ru": "Копировать адрес",
+    "zh": "复制地址"
+  },
+  "common.copyComment": {
+    "en": "Copy comment",
+    "de": "Kommentar kopieren",
+    "fa": "کپی توضیح",
+    "tr": "Açıklamayı kopyala",
+    "es": "Copiar comentario",
+    "fr": "Copier le commentaire",
+    "ru": "Копировать комментарий",
+    "zh": "复制备注"
+  },
+  "common.hourShort": {
+    "en": "hour",
+    "de": "Stunde",
+    "fa": "ساعت",
+    "tr": "saat",
+    "es": "hora",
+    "fr": "heure",
+    "ru": "час",
+    "zh": "时"
+  },
+  "common.minuteShort": {
+    "en": "minute",
+    "de": "Minute",
+    "fa": "دقیقه",
+    "tr": "dakika",
+    "es": "minuto",
+    "fr": "minute",
+    "ru": "минута",
+    "zh": "分"
+  },
+  "common.theme": {
+    "en": "Theme",
+    "de": "Design",
+    "fa": "پوسته",
+    "tr": "Tema",
+    "es": "Tema",
+    "fr": "Thème",
+    "ru": "Тема",
+    "zh": "主题"
+  },
+  "common.navigation": {
+    "en": "Navigation",
+    "de": "Navigation",
+    "fa": "جهت‌یابی",
+    "tr": "Gezinme",
+    "es": "Navegación",
+    "fr": "Navigation",
+    "ru": "Навигация",
+    "zh": "导航"
+  },
+  "common.more": {
+    "en": "More",
+    "de": "Mehr",
+    "fa": "بیشتر",
+    "tr": "Daha fazla",
+    "es": "Más",
+    "fr": "Plus",
+    "ru": "Ещё",
+    "zh": "更多"
+  },
+  "donate.banner": {
+    "en": "Donation banner",
+    "de": "Spenden-Banner",
+    "fa": "بنر حمایت مالی",
+    "tr": "Bağış afişi",
+    "es": "Banner de donación",
+    "fr": "Bannière de don",
+    "ru": "Баннер пожертвования",
+    "zh": "捐助横幅"
+  },
+  "settings.sunriseHour": {
+    "en": "Sunrise hour",
+    "de": "Sonnenaufgangsstunde",
+    "fa": "ساعت طلوع",
+    "tr": "Güneş doğuş saati",
+    "es": "Hora del amanecer",
+    "fr": "Heure du lever",
+    "ru": "Час восхода",
+    "zh": "日出时"
+  },
+  "settings.sunriseMinute": {
+    "en": "Sunrise minute",
+    "de": "Sonnenaufgangminute",
+    "fa": "دقیقه طلوع",
+    "tr": "Güneş doğuş dakikası",
+    "es": "Minuto del amanecer",
+    "fr": "Minute du lever",
+    "ru": "Минута восхода",
+    "zh": "日出分"
+  },
+  "settings.sunsetHour": {
+    "en": "Sunset hour",
+    "de": "Sonnenuntergangsstunde",
+    "fa": "ساعت غروب",
+    "tr": "Güneş batış saati",
+    "es": "Hora del atardecer",
+    "fr": "Heure du coucher",
+    "ru": "Час заката",
+    "zh": "日落时"
+  },
+  "settings.sunsetMinute": {
+    "en": "Sunset minute",
+    "de": "Sonnenuntergangminute",
+    "fa": "دقیقه غروب",
+    "tr": "Güneş batış dakikası",
+    "es": "Minuto del atardecer",
+    "fr": "Minute du coucher",
+    "ru": "Минута заката",
+    "zh": "日落分"
+  },
+  "status.chartAriaLabel": {
+    "en": "Brightness over time",
+    "de": "Helligkeit über Zeit",
+    "fa": "روشنایی در طول زمان",
+    "tr": "Zaman içinde parlaklık",
+    "es": "Brillo en el tiempo",
+    "fr": "Luminosité dans le temps",
+    "ru": "Яркость со временем",
+    "zh": "亮度随时间变化"
+  },
+  "status.facesLabel": {
+    "en": "In view",
+    "de": "Im Blickfeld",
+    "fa": "در دید",
+    "tr": "Görüşte",
+    "es": "A la vista",
+    "fr": "Dans le champ",
+    "ru": "В кадре",
+    "zh": "入镜"
+  },
+  "status.facesPresent": {
+    "en": "Person detected",
+    "de": "Person erkannt",
+    "fa": "فرد شناسایی شد",
+    "tr": "Kişi algılandı",
+    "es": "Persona detectada",
+    "fr": "Personne détectée",
+    "ru": "Обнаружено лицо",
+    "zh": "检测到人"
+  },
+  "status.facesAbsent": {
+    "en": "No one in view",
+    "de": "Niemand im Blickfeld",
+    "fa": "کسی در دید نیست",
+    "tr": "Görüşte kimse yok",
+    "es": "Nadie a la vista",
+    "fr": "Personne dans le champ",
+    "ru": "Никого в кадре",
+    "zh": "无人入镜"
+  },
+  "status.dotsHint": {
+    "en": "Dots mark brightness changes you made by hand.",
+    "de": "Punkte markieren von Ihnen vorgenommene Helligkeitsänderungen.",
+    "fa": "نقطه‌ها تغییرات روشنایی دستی شما را نشان می‌دهند.",
+    "tr": "Noktalar elle yaptığınız parlaklık değişikliklerini işaretler.",
+    "es": "Los puntos marcan los cambios de brillo hechos a mano.",
+    "fr": "Les points marquent les changements de luminosité faits à la main.",
+    "ru": "Точки отмечают вручную изменённую яркость.",
+    "zh": "圆点标记您手动调整的亮度。"
+  },
+  "status.signalsTitle": {
+    "en": "What the app sees",
+    "de": "Was die App erkennt",
+    "fa": "آنچه برنامه می‌بیند",
+    "tr": "Uygulamanın gördüğü",
+    "es": "Lo que ve la aplicación",
+    "fr": "Ce que voit l'application",
+    "ru": "Что видит приложение",
+    "zh": "应用感知到的环境"
+  },
+  "status.lux": {
+    "en": "Light level",
+    "de": "Lichtpegel",
+    "fa": "سطح نور",
+    "tr": "Işık seviyesi",
+    "es": "Nivel de luz",
+    "fr": "Niveau de lumière",
+    "ru": "Уровень освещённости",
+    "zh": "光照水平"
+  },
+  "status.luxUnit": {
+    "en": "lx",
+    "de": "lx",
+    "fa": "لوکس",
+    "tr": "lx",
+    "es": "lx",
+    "fr": "lx",
+    "ru": "лк",
+    "zh": "勒克斯"
+  },
+  "status.source": {
+    "en": "Source",
+    "de": "Quelle",
+    "fa": "منبع",
+    "tr": "Kaynak",
+    "es": "Fuente",
+    "fr": "Source",
+    "ru": "Источник",
+    "zh": "来源"
+  },
+  "status.sourceSensor": {
+    "en": "Hardware sensor",
+    "de": "Hardware-Sensor",
+    "fa": "سنسور سخت‌افزاری",
+    "tr": "Donanım sensörü",
+    "es": "Sensor de hardware",
+    "fr": "Capteur matériel",
+    "ru": "Аппаратный датчик",
+    "zh": "硬件传感器"
+  },
+  "status.sourceWebcamRaw": {
+    "en": "Camera (raw sensor)",
+    "de": "Kamera (Rohsensor)",
+    "fa": "دوربین (سنسور خام)",
+    "tr": "Kamera (ham sensör)",
+    "es": "Cámara (sensor sin procesar)",
+    "fr": "Caméra (capteur brut)",
+    "ru": "Камера (сырой сенсор)",
+    "zh": "摄像头（原始传感器）"
+  },
+  "status.sourceWebcamFace": {
+    "en": "Camera (face estimate)",
+    "de": "Kamera (Gesichtsschätzung)",
+    "fa": "دوربین (تخمین چهره)",
+    "tr": "Kamera (yüz tahmini)",
+    "es": "Cámara (estimación por rostro)",
+    "fr": "Caméra (estimation par visage)",
+    "ru": "Камера (оценка по лицу)",
+    "zh": "摄像头（人脸估算）"
+  },
+  "status.sourceWebcamScene": {
+    "en": "Camera (scene estimate)",
+    "de": "Kamera (Szenenschätzung)",
+    "fa": "دوربین (تخمین صحنه)",
+    "tr": "Kamera (sahne tahmini)",
+    "es": "Cámara (estimación de escena)",
+    "fr": "Caméra (estimation de scène)",
+    "ru": "Камера (оценка сцены)",
+    "zh": "摄像头（场景估算）"
+  },
+  "status.sourceNone": {
+    "en": "No camera or sensor",
+    "de": "Keine Kamera oder Sensor",
+    "fa": "دوربین یا سنسوری نیست",
+    "tr": "Kamera veya sensör yok",
+    "es": "Sin cámara ni sensor",
+    "fr": "Aucune caméra ni capteur",
+    "ru": "Нет камеры или датчика",
+    "zh": "无摄像头或传感器"
+  },
+  "status.colorTemp": {
+    "en": "Light warmth",
+    "de": "Lichtwärme",
+    "fa": "گرمای نور",
+    "tr": "Işık sıcaklığı",
+    "es": "Calidez de la luz",
+    "fr": "Chaleur de la lumière",
+    "ru": "Теплота света",
+    "zh": "光色冷暖"
+  },
+  "status.kelvinUnit": {
+    "en": "K",
+    "de": "K",
+    "fa": "کلوین",
+    "tr": "K",
+    "es": "K",
+    "fr": "K",
+    "ru": "K",
+    "zh": "K"
+  },
+  "status.signalsEmpty": {
+    "en": "No readings yet — the app gathers signals while it runs.",
+    "de": "Noch keine Messwerte — die App sammelt Daten im Hintergrund.",
+    "fa": "هنوز خوانشی نیست — برنامه هنگام اجرا داده جمع می‌کند.",
+    "tr": "Henüz okuma yok — uygulama çalışırken veri toplar.",
+    "es": "Aún no hay lecturas: la app recopila señales en segundo plano.",
+    "fr": "Aucune lecture pour l'instant — l'application collecte des signales en tâche de fond.",
+    "ru": "Показаний пока нет — приложение собирает данные в фоне.",
+    "zh": "暂无读数——应用在运行时收集信号。"
+  },
+  "status.groupLive": {
+    "en": "Right now",
+    "de": "Gerade eben",
+    "fa": "همین حالا",
+    "tr": "Şu anda",
+    "es": "En este momento",
+    "fr": "En ce moment",
+    "ru": "Сейчас",
+    "zh": "当前"
+  },
+  "status.groupEnvironment": {
+    "en": "Environment",
+    "de": "Umgebung",
+    "fa": "محیط",
+    "tr": "Ortam",
+    "es": "Entorno",
+    "fr": "Environnement",
+    "ru": "Окружение",
+    "zh": "环境"
+  },
+  "status.groupLearning": {
+    "en": "Learning",
+    "de": "Lernen",
+    "fa": "یادگیری",
+    "tr": "Öğrenme",
+    "es": "Aprendizaje",
+    "fr": "Apprentissage",
+    "ru": "Обучение",
+    "zh": "学习"
+  },
+  "settings.sectionLearning": {
+    "en": "Learning",
+    "de": "Lernen",
+    "fa": "یادگیری",
+    "tr": "Öğrenme",
+    "es": "Aprendizaje",
+    "fr": "Apprentissage",
+    "ru": "Обучение",
+    "zh": "学习"
+  },
+  "settings.sectionResponsiveness": {
+    "en": "How often it checks",
+    "de": "Prüfhäufigkeit",
+    "fa": "چگونگی بررسی",
+    "tr": "Kontrol sıklığı",
+    "es": "Frecuencia de comprobación",
+    "fr": "Fréquence de vérification",
+    "ru": "Частота проверок",
+    "zh": "检查频率"
+  },
+  "settings.sectionAdjustment": {
+    "en": "Adjustment rules",
+    "de": "Anpassungsregeln",
+    "fa": "قوانین تنظیم",
+    "tr": "Düzenleme kuralları",
+    "es": "Reglas de ajuste",
+    "fr": "Règles d'ajustement",
+    "ru": "Правила подстройки",
+    "zh": "调节规则"
+  },
+  "settings.sectionLogging": {
+    "en": "History",
+    "de": "Verlauf",
+    "fa": "تاریخچه",
+    "tr": "Geçmiş",
+    "es": "Historial",
+    "fr": "Historique",
+    "ru": "История",
+    "zh": "历史记录"
+  },
   "update.available": {
     "en": "A new version is available.",
     "de": "Eine neue Version ist verfügbar.",

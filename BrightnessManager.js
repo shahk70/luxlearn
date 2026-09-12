@@ -1276,6 +1276,7 @@ class BrightnessManager extends EventEmitter {
   getCurrentStatus() {
     const confidence = this._computeAutomationConfidence();
     this._updateLearningPhase(confidence);
+    const ambient = this.#lastAmbientState;
     return {
       currentBrightness: this.lastKnownBrightness,
       learningPhase: this._getLearningPhase(),
@@ -1292,6 +1293,13 @@ class BrightnessManager extends EventEmitter {
       lastNightLight: this.#lastNightLight,
       lightMode: this.#lightMode,
       deviceWeak: this.#deviceProfile?.weak === true,
+      signals: ambient ? {
+        lux: ambient.ambientLightLuxRaw ?? null,
+        source: ambient.ambientLightSource ?? null,
+        detail: ambient.ambientLightDetail ?? null,
+        colorTempCct: ambient.colorTempCct ?? null,
+        faceCount: ambient.faceCount ?? 0,
+      } : null,
     };
   }
 

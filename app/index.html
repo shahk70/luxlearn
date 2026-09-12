@@ -14,7 +14,7 @@
     object-src 'none';
     base-uri 'none';
   ">
-  <title>SKR Auto Brightness</title>
+  <title data-i18n="app.name">LuxLearn</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,13 +34,13 @@
       <span class="titlebar-title" data-i18n="app.name">LuxLearn</span>
     </div>
     <div class="titlebar-controls">
-      <button class="titlebar-btn" id="winMinimize" aria-label="Minimize">
+      <button class="titlebar-btn" id="winMinimize" data-i18n-aria-label="common.minimize">
         <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg>
       </button>
-      <button class="titlebar-btn" id="winMaximize" aria-label="Maximize">
+      <button class="titlebar-btn" id="winMaximize" data-i18n-aria-label="common.maximize">
         <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>
       </button>
-      <button class="titlebar-btn titlebar-close" id="winClose" aria-label="Hide to tray">
+      <button class="titlebar-btn titlebar-close" id="winClose" data-i18n-aria-label="common.hideToTray">
         <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1"/></svg>
       </button>
     </div>
@@ -59,19 +59,19 @@
         <path d="M3.5 12L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
       </svg>
       <h2 data-i18n="app.name">LuxLearn</h2>
-      <div class="theme-toggle" role="group" aria-label="Theme">
-        <button class="theme-opt" id="themeLightBtn" data-i18n-title="common.light" data-i18n-aria-label="common.light" title="Light" aria-label="Light" aria-pressed="false">
+      <div class="theme-toggle" role="group" data-i18n-aria-label="common.theme">
+        <button class="theme-opt" id="themeLightBtn" data-i18n-title="common.light" data-i18n-aria-label="common.light" aria-pressed="false">
           <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="4"></circle>
             <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
           </svg>
         </button>
-        <button class="theme-opt" id="themeDarkBtn" data-i18n-title="common.dark" data-i18n-aria-label="common.dark" title="Dark" aria-label="Dark" aria-pressed="false">
+        <button class="theme-opt" id="themeDarkBtn" data-i18n-title="common.dark" data-i18n-aria-label="common.dark" aria-pressed="false">
           <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
           </svg>
         </button>
-        <button class="theme-opt" id="themeSystemBtn" data-i18n-title="common.system" data-i18n-aria-label="common.system" title="System" aria-label="System" aria-pressed="false">
+        <button class="theme-opt" id="themeSystemBtn" data-i18n-title="common.system" data-i18n-aria-label="common.system" aria-pressed="false">
           <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="3" width="20" height="14" rx="2"></rect>
             <line x1="8" y1="21" x2="16" y2="21"></line>
@@ -80,7 +80,7 @@
         </button>
       </div>
     </div>
-    <ul class="menu" role="tablist" aria-label="Navigation">
+    <ul class="menu" role="tablist" data-i18n-aria-label="common.navigation">
       <li data-page="settings" class="active" role="tab" aria-selected="true" tabindex="0">
         <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -124,9 +124,9 @@
         <span data-i18n="nav.about">About</span>
       </li>
     </ul>
-    <ul class="footer-menu" role="tablist" aria-label="More">
+    <ul class="footer-menu" role="tablist" data-i18n-aria-label="common.more">
       <li data-page="donate" role="tab" aria-selected="false" tabindex="0">
-        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="red" stroke="red"
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor"
           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path
             d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.77-.77-.77a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z">
@@ -200,7 +200,7 @@
               </svg>
               <label for="languageSelect" data-i18n="settings.language">Language</label>
             </div>
-            <select id="languageSelect" class="language-select" aria-label="Language">
+            <select id="languageSelect" class="language-select" data-i18n-aria-label="common.language">
               <option value="en">English</option>
               <option value="de">Deutsch</option>
               <option value="fa">فارسی</option>
@@ -223,7 +223,7 @@
                 </svg>
                 <label for="cameraDeviceSelect" data-i18n="settings.cameraDevice">Camera</label>
               </div>
-              <select id="cameraDeviceSelect" class="device-select" aria-label="Camera">
+              <select id="cameraDeviceSelect" class="device-select" data-i18n-aria-label="common.camera">
                 <option value="" data-i18n="settings.cameraAuto">Automatic</option>
               </select>
             </div>
@@ -238,7 +238,7 @@
                 </svg>
                 <label for="targetDisplaySelect" data-i18n="settings.display">Display</label>
               </div>
-              <select id="targetDisplaySelect" class="device-select" aria-label="Display">
+              <select id="targetDisplaySelect" class="device-select" data-i18n-aria-label="common.display">
                 <option value="all" data-i18n="settings.displayAll">All displays</option>
               </select>
             </div>
@@ -313,13 +313,13 @@
               <div class="number-input-wrapper">
                 <input type="number" id="sunriseHour" min="0" max="23" placeholder="HH" aria-label="Sunrise hour">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase hour" tabindex="-1">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg>
                   </button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease hour" tabindex="-1">
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -331,13 +331,13 @@
               <div class="number-input-wrapper">
                 <input type="number" id="sunriseMinute" min="0" max="59" placeholder="MM" aria-label="Sunrise minute">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minute" tabindex="-1">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg>
                   </button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minute" tabindex="-1">
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -361,13 +361,13 @@
               <div class="number-input-wrapper">
                 <input type="number" id="sunsetHour" min="0" max="23" placeholder="HH" aria-label="Sunset hour">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase hour" tabindex="-1">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg>
                   </button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease hour" tabindex="-1">
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -379,13 +379,13 @@
               <div class="number-input-wrapper">
                 <input type="number" id="sunsetMinute" min="0" max="59" placeholder="MM" aria-label="Sunset minute">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minute" tabindex="-1">
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg>
                   </button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minute" tabindex="-1">
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -403,7 +403,8 @@
         </div>
         <div class="card-body">
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+          <div class="settings-group">
+            <h3 class="settings-section-title settings-group-full" data-i18n="settings.sectionLearning">Learning</h3>
 
             <div class="form-group-redesigned">
               <div class="form-heading">
@@ -422,12 +423,12 @@
                 <input type="number" name="learning-fase-duration" id="learning-duration" min="1"
                   max="31">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase days" tabindex="-1"><svg
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg></button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease days" tabindex="-1"><svg
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -435,6 +436,11 @@
                 </div>
               </div>
             </div>
+
+          </div>
+
+          <div class="settings-group">
+            <h3 class="settings-section-title settings-group-full" data-i18n="settings.sectionResponsiveness">How often it checks</h3>
 
             <div class="form-group-redesigned">
               <div class="form-heading">
@@ -450,12 +456,12 @@
                 <input type="number" name="learning-fase-polinterval" id="learning-polinterval"
                   min="1" max="600">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase seconds" tabindex="-1"><svg
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg></button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease seconds" tabindex="-1"><svg
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -463,6 +469,11 @@
                 </div>
               </div>
             </div>
+
+          </div>
+
+          <div class="settings-group">
+            <h3 class="settings-section-title settings-group-full" data-i18n="settings.sectionLogging">History</h3>
 
             <div class="form-group-redesigned">
               <div class="form-heading">
@@ -480,12 +491,12 @@
                 <input type="number" name="learning-fase-logSyncInterval" id="learning-logSyncInterval"
                   min="0.5" max="600" step="0.5">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minutes" tabindex="-1"><svg
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg></button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minutes" tabindex="-1"><svg
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -508,12 +519,12 @@
                 <input type="number" name="learning-fase-loglimit" id="learning-loglimit"
                   min="50" max="2000" step="10">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase limit" tabindex="-1"><svg
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg></button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease limit" tabindex="-1"><svg
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -521,6 +532,11 @@
                 </div>
               </div>
             </div>
+
+          </div>
+
+          <div class="settings-group">
+            <h3 class="settings-section-title settings-group-full" data-i18n="settings.sectionAdjustment">Adjustment rules</h3>
 
             <div class="form-group-redesigned">
               <div class="form-heading">
@@ -545,12 +561,12 @@
                 <input type="number" name="luxlearn-interval" id="auto-interval" min="0.1"
                   max="60" step="0.1">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minutes" tabindex="-1"><svg
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg></button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minutes" tabindex="-1"><svg
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -575,12 +591,12 @@
                 <input type="number" name="manual-override-minutes" id="manual-override-minutes"
                   min="1" max="60">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase minutes" tabindex="-1"><svg
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg></button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease minutes" tabindex="-1"><svg
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -606,12 +622,12 @@
                 <input type="number" name="hysteresis-percent" id="hysteresis-percent"
                   min="0" max="25" step="0.5">
                 <div class="stepper-buttons">
-                  <button class="stepper-up" data-i18n-aria-label="common.increase" aria-label="Increase threshold" tabindex="-1"><svg
+                  <button class="stepper-up" data-i18n-aria-label="common.increase" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="18 15 12 9 6 15"></polyline>
                     </svg></button>
-                  <button class="stepper-down" data-i18n-aria-label="common.decrease" aria-label="Decrease threshold" tabindex="-1"><svg
+                  <button class="stepper-down" data-i18n-aria-label="common.decrease" tabindex="-1"><svg
                       xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -651,27 +667,44 @@
 
     <div class="page" id="page-status">
       <h1 data-i18n="status.title">Status</h1>
+
+      <section class="card signals-card" id="signalsCard">
+        <div class="card-header">
+          <h3 data-i18n="status.signalsTitle">What the app sees</h3>
+        </div>
+        <div class="card-body">
+          <p class="signals-empty" id="signalsEmpty" data-i18n="status.signalsEmpty">No readings yet — the app gathers signals while it runs.</p>
+          <dl class="definition-list signals-list" id="signalsList" hidden>
+            <dt data-i18n="status.lux">Light level</dt>
+            <dd><span id="signals-lux">--</span></dd>
+            <dt data-i18n="status.source">Source</dt>
+            <dd><span id="signals-source" class="source-chip">--</span></dd>
+            <dt data-i18n="status.colorTemp">Light warmth</dt>
+            <dd><span id="signals-cct">--</span></dd>
+            <dt data-i18n="status.facesLabel">In view</dt>
+            <dd><span id="signals-faces">--</span></dd>
+          </dl>
+        </div>
+      </section>
+
       <section class="card status-card">
         <div class="card-body">
+          <h4 class="status-section-title" data-i18n="status.groupLive">Right now</h4>
           <dl class="definition-list">
             <dt data-i18n="status.brightness">Current Brightness</dt>
             <dd id="status-brightness">--%</dd>
 
-            <dt data-i18n="status.learningPhase">Learning Phase</dt>
-            <dd id="status-learning-phase">--</dd>
-
             <dt data-i18n="status.confidence">Automation Confidence</dt>
             <dd id="status-confidence">--%</dd>
-
-            <dt data-i18n="status.logs">Logs Recorded</dt>
-            <dd id="status-logs-recorded">-- / --</dd>
 
             <dt data-i18n="status.auto">Auto Brightness</dt>
             <dd id="status-auto-brightness" class="">---</dd>
 
             <dt data-i18n="status.next">Next Adjustment</dt>
             <dd id="status-next-adjustment">--</dd>
-
+          </dl>
+          <h4 class="status-section-title" data-i18n="status.groupEnvironment">Environment</h4>
+          <dl class="definition-list">
             <dt data-i18n="status.als">Ambient Light Sensor</dt>
             <dd id="status-als">--</dd>
 
@@ -683,6 +716,14 @@
 
             <dt id="status-lightmode-label" hidden data-i18n="status.lowpower">Low-power Mode</dt>
             <dd id="status-lightmode" hidden>--</dd>
+          </dl>
+          <h4 class="status-section-title" data-i18n="status.groupLearning">Learning</h4>
+          <dl class="definition-list">
+            <dt data-i18n="status.learningPhase">Learning Phase</dt>
+            <dd id="status-learning-phase">--</dd>
+
+            <dt data-i18n="status.logs">Logs Recorded</dt>
+            <dd id="status-logs-recorded">-- / --</dd>
           </dl>
           <div class="pause-row" id="pauseRow">
             <button class="btn btn-secondary btn-sm" id="pauseBtn" data-i18n="status.pause">Pause adjustments</button>
@@ -701,7 +742,7 @@
         </div>
         <div class="card-body">
           <div class="chart-wrap">
-            <canvas id="historyChart" width="720" height="200" aria-label="Brightness over time" title="Dots mark manual changes. Hover for exact values."></canvas>
+            <canvas id="historyChart" width="720" height="200" data-i18n-aria-label="status.chartAriaLabel" data-i18n-title="status.dotsHint"></canvas>
             <div class="chart-empty" id="chartEmpty" hidden data-i18n="status.chartEmpty">Not enough data yet — history appears as the app logs changes.</div>
           </div>
           <p class="chart-caption" id="chartCaption"></p>
@@ -812,8 +853,8 @@
             <div class="wallet-group">
               <b>USDT (Polygon)</b>
               <div class="wallet-container">
-                <span class="wallet" readonly>0x54d84834bceaafb03c0e51adf1adb6054e6fc255</span>
-                <button class="copy-btn" data-i18n-title="donate.copyAddress" data-tooltip="Copy address"
+                <span class="wallet">0x54d84834bceaafb03c0e51adf1adb6054e6fc255</span>
+                <button class="copy-btn" data-i18n-title="common.copyAddress"
                   data-copy-value="0x54d84834bceaafb03c0e51adf1adb6054e6fc255">
                   <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -826,8 +867,8 @@
             <div class="wallet-group">
               <b>GRAM</b>
               <div class="wallet-container">
-                <span class="wallet" readonly>EQD6I8TsONciAWiRHNiYSfZMzhBTRrbK4jW1Emc3UqjWhTZE</span>
-                <button class="copy-btn" data-i18n-title="donate.copyAddress" data-tooltip="Copy address"
+                <span class="wallet">EQD6I8TsONciAWiRHNiYSfZMzhBTRrbK4jW1Emc3UqjWhTZE</span>
+                <button class="copy-btn" data-i18n-title="common.copyAddress"
                   data-copy-value="EQD6I8TsONciAWiRHNiYSfZMzhBTRrbK4jW1Emc3UqjWhTZE">
                   <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -838,8 +879,8 @@
               </div>
               <small><span data-i18n="donate.comment">Comment:</span>
                 <div class="wallet-container">
-                  <span class="wallet" readonly>230529868</span>
-                  <button class="copy-btn" data-i18n-title="donate.copyComment" data-tooltip="Copy comment" data-copy-value="230529868">
+                  <span class="wallet">230529868</span>
+                  <button class="copy-btn" data-i18n-title="common.copyComment" data-copy-value="230529868">
                     <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                       viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                       stroke-linejoin="round">
@@ -853,8 +894,8 @@
             <div class="wallet-group">
               <b>TRX</b>
               <div class="wallet-container">
-                <span class="wallet" readonly>TF4VzYvP7J1P5qV6PxGU9R3z84TyxzV9Jm</span>
-                <button class="copy-btn" data-i18n-title="donate.copyAddress" data-tooltip="Copy address"
+                <span class="wallet">TF4VzYvP7J1P5qV6PxGU9R3z84TyxzV9Jm</span>
+                <button class="copy-btn" data-i18n-title="common.copyAddress"
                   data-copy-value="TF4VzYvP7J1P5qV6PxGU9R3z84TyxzV9Jm">
                   <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -937,7 +978,7 @@
   </main>
   </div>
 
-  <div id="toast" role="alert"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 
   <div id="confirmOverlay" class="confirm-overlay" hidden>
     <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">

@@ -315,6 +315,7 @@ function sendDynamicStatusUpdate() {
             manualOverrideUntil: status.manualOverrideUntil,
             currentWeights: status.currentWeights,
             interactionPair: status.interactionPair,
+            signals: status.signals ?? null,
         });
     });
 }

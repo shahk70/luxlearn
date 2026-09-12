@@ -277,7 +277,44 @@ window.addEventListener('DOMContentLoaded', () => {
                 lastInteractionPair = data.interactionPair ?? null;
                 renderWeights(lastKnownWeights, lastInteractionPair);
             }
+
+            if ('signals' in data) updateSignalsUI(data.signals);
         });
+    }
+
+    function updateSignalsUI(signals) {
+        const list = $('signalsList');
+        const empty = $('signalsEmpty');
+        if (!list) return;
+        const hasSignals = signals && Number.isFinite(signals.lux);
+        if (empty) empty.hidden = !!hasSignals;
+        list.hidden = !hasSignals;
+        if (!hasSignals) return;
+
+        setText($('signals-lux'), `${Math.round(signals.lux)} ${t('status.luxUnit')}`);
+
+        const sourceEl = $('signals-source');
+        const key = signals.source === 'sensor' ? 'status.sourceSensor'
+            : signals.detail === 'raw' ? 'status.sourceWebcamRaw'
+            : signals.detail === 'face' ? 'status.sourceWebcamFace'
+            : signals.detail === 'scene' ? 'status.sourceWebcamScene'
+            : 'status.sourceNone';
+        if (sourceEl) {
+            setText(sourceEl, t(key));
+            sourceEl.className = 'source-chip' + (
+                signals.source === 'sensor' ? ' source-sensor'
+                : signals.detail === 'raw' ? ' source-raw'
+                : ' source-estimate'
+            );
+        }
+
+        const cct = Number.isFinite(signals.colorTempCct) ? `${signals.colorTempCct} ${t('status.kelvinUnit')}` : '--';
+        setText($('signals-cct'), cct);
+
+        const faces = Number.isFinite(signals.faceCount) && signals.faceCount > 0
+            ? t('status.facesPresent')
+            : t('status.facesAbsent');
+        setText($('signals-faces'), faces);
     }
 
     let lastPowerText = null;
@@ -699,6 +736,8 @@ window.addEventListener('DOMContentLoaded', () => {
             item.classList.toggle('active', item === li);
             if (item.hasAttribute('aria-selected')) {
                 item.setAttribute('aria-selected', item === li ? 'true' : 'false');
+                // Roving tabindex: only the active tab stays in the tab order.
+                item.setAttribute('tabindex', item === li ? '0' : '-1');
             }
         };
         document.querySelectorAll('.menu li, .footer-menu li').forEach(activate);
