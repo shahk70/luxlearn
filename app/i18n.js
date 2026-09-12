@@ -1301,6 +1301,16 @@ const I18N = {
     "ru": "Экспорт завершён.",
     "zh": "导出完成。"
   },
+  "toast.pinHint": {
+    "en": "You asked to pin LuxLearn: right-click its taskbar icon and choose \"Pin to taskbar\".",
+    "de": "Sie wollten LuxLearn anheften: Rechtsklick auf das Taskleisten-Symbol → „An Taskleiste anheften“.",
+    "fa": "می‌خواستید LuxLearn را سنجاق کنید: روی نماد نوار وظیفه راست‌کلیک کنید و «Pin to taskbar» را بزنید.",
+    "tr": "LuxLearn'i sabitlemek istediniz: görev çubuğu simgesine sağ tıklayıp \"Görev çubuğuna sabitle\"yi seçin.",
+    "es": "Pediste anclar LuxLearn: haz clic derecho en su icono de la barra de tareas y elige \"Anclar a la barra de tareas\".",
+    "fr": "Vous avez demandé à épingler LuxLearn : clic droit sur son icône dans la barre des tâches, puis « Épingler à la barre des tâches ».",
+    "ru": "Вы просили закрепить LuxLearn: щёлкните правой кнопкой по значку на панели задач и выберите «Закрепить на панели задач».",
+    "zh": "您请求固定 LuxLearn：右键点击任务栏图标，选择\"固定到任务栏\"。"
+  },
   "toast.historyCleared": {
     "en": "Learning history cleared.",
     "de": "Lernverlauf gelöscht.",

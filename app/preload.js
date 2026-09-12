@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const earlyBuffer = {};
-const bufferedChannels = ['weather-update', 'dynamic-status-update', 'settings-updated', 'log-update', 'update-available', 'update-download-progress', 'update-downloaded', 'os-support-update'];
+const bufferedChannels = ['weather-update', 'dynamic-status-update', 'settings-updated', 'log-update', 'update-available', 'update-download-progress', 'update-downloaded', 'os-support-update', 'pin-hint'];
 for (const channel of bufferedChannels) {
     ipcRenderer.on(channel, (_event, value) => {
         earlyBuffer[channel] = value;
@@ -58,5 +58,6 @@ contextBridge.exposeInMainWorld('api', {
      onLogUpdate: (callback) => subscribe('log-update', callback),
      onUpdateAvailable: (callback) => subscribe('update-available', callback),
      onOsSupportUpdate: (callback) => subscribe('os-support-update', callback),
+     onPinHint: (callback) => subscribe('pin-hint', callback),
      openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

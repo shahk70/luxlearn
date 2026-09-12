@@ -607,14 +607,14 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     let toastTimer = null;
-    function showToast(message) {
+    function showToast(message, durationMs = 3000) {
         setText(elems.toast, message);
         elems.toast.classList.add('show');
         if (toastTimer) clearTimeout(toastTimer);
         toastTimer = setTimeout(() => {
             elems.toast.classList.remove('show');
             toastTimer = null;
-        }, 3000);
+        }, durationMs);
     }
 
     async function copyWallet(button, address) {
@@ -1418,6 +1418,7 @@ window.addEventListener('DOMContentLoaded', () => {
         bindUpdateDownloadEvents();
         window.api.onUpdateAvailable?.(showUpdateBanner);
         window.api.onOsSupportUpdate?.(renderOsSupport);
+        window.api.onPinHint?.(() => showToast(t('toast.pinHint'), 8000));
         window.api.onSettingsUpdated?.(({ settings, learningConfig }) => {
             applyConfig(settings, { skipIfCurrent: true });
             updateProfileUI(settings, learningConfig);

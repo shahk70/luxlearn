@@ -8,7 +8,7 @@ const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog, sh
 const path = require('path');
 const os = require('os');
 const fs = require('fs/promises');
-const { loadJSON, saveJSON, defaultSettings, sanitizeSettings, settingsPath, ICON_PATH, ICON_PNG_PATH, WEATHER_JSON_PATH } = require('../core');
+const { loadJSON, saveJSON, defaultSettings, sanitizeSettings, settingsPath, ICON_PATH, ICON_PNG_PATH, WEATHER_JSON_PATH, execAsync } = require('../core');
 
 const { updateDailyWeatherInfo } = require('../weather');
 const BrightnessManager = require('../BrightnessManager');
@@ -208,6 +208,14 @@ async function initializeLogic() {
         updateTrayMenu();
         updateLoginItemSettings();
 
+        // One-time follow-up for users who ticked "pin to taskbar" in the
+        // installer: Windows refuses silent pinning, so surface how to do it.
+        checkTaskbarPinRequest().then((result) => {
+            if (result?.pinHint && mainWindow) {
+                sendToMainWindow('pin-hint', {});
+            }
+        });
+
         setTimeout(() => refreshWeatherData(true), 15000).unref();
         setInterval(refreshWeatherData, WEATHER_REFRESH_INTERVAL_MS).unref();
 
@@ -371,6 +379,18 @@ async function setLinuxAutostart(enabled) {
 }
 
 function updateLoginItemSettings() {
+    if (process.platform === 'win32') {
+        // Single Run-key name shared with the installer; previously the app
+        // registered under the AUMID ("SKR.LuxLearn") while the installer
+        // wrote "LuxLearn", leaving two startup entries per update.
+        app.setLoginItemSettings({
+            openAtLogin: state.settings.startWithSystem,
+            name: 'LuxLearn',
+            args: ['--hidden']
+        });
+        removeLegacyLoginItems();
+        return;
+    }
     app.setLoginItemSettings({
         openAtLogin: state.settings.startWithSystem,
         openAsHidden: true,
@@ -379,6 +399,15 @@ function updateLoginItemSettings() {
     if (process.platform === 'linux') {
         setLinuxAutostart(state.settings.startWithSystem);
     }
+}
+
+function removeLegacyLoginItems() {
+    try {
+        const names = new Set((app.getLoginItemSettings().launchItems || []).map((i) => i.name));
+        for (const legacy of ['SKR.LuxLearn', 'SKR.AutoBright']) {
+            if (names.has(legacy)) app.setLoginItemSettings({ openAtLogin: false, name: legacy });
+        }
+    } catch { /* best effort */ }
 }
 
 const SCREEN_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture';
@@ -651,6 +680,27 @@ ipcMain.handle('activity:check-window', async () => {
 });
 
 ipcMain.handle('about:get-version', () => app.getVersion());
+
+// Windows blocks silent taskbar pinning from installers (the "pin to
+// taskbar" verb rejects non-explorer callers since 1809; copying .lnk
+// files into User Pinned no longer sticks; WinRT TaskbarManager needs the
+// app itself foregrounded with user consent). So the installer checkbox
+// records intent in the registry, and on the next foreground start the
+// app shows a one-time hint pointing at the running icon instead of
+// pretending to pin. Flag is cleared either way so it never nags.
+function checkTaskbarPinRequest() {
+    if (process.platform !== 'win32') return Promise.resolve(null);
+    return new Promise((resolve) => {
+        execAsync('reg query "HKCU\\Software\\LuxLearn" /v PinToTaskbarRequested', { windowsHide: true })
+            .then(({ stdout }) => resolve(/\bPinToTaskbarRequested\s+REG_SZ\s+1/.test(stdout) ? true : null))
+            .catch(() => resolve(null));
+    }).then((requested) => {
+        if (!requested) return null;
+        execAsync('reg delete "HKCU\\Software\\LuxLearn" /v PinToTaskbarRequested /f', { windowsHide: true }).catch(() => { });
+        return { pinHint: true };
+    });
+}
+
 ipcMain.handle('about:check-updates', async () => {
     try {
         if (autoUpdater) {

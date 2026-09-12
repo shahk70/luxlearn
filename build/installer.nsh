@@ -57,9 +57,24 @@ FunctionEnd
     Delete "$newDesktopLink"
   ${EndIf}
 
+  # Taskbar pinning is deliberately user-initiated on modern Windows:
+  # the "pin to taskbar" shell verb rejects non-explorer callers since
+  # 1809, and copying .lnk files into User Pinned no longer sticks — the
+  # old StdUtils InvokeShellVerb call here silently did nothing. The
+  # checkbox now records intent in the registry; on next start the app
+  # shows a one-time toast telling the user how to pin the running icon.
   ${If} $AutobrightValTaskbar == ${BST_CHECKED}
-    ${StdUtils.InvokeShellVerb} $0 "$INSTDIR" "${APP_EXECUTABLE_FILENAME}" ${StdUtils.Const.ShellVerb.PinToTaskbar}
+    WriteRegStr SHELL_CONTEXT "Software\${PRODUCT_NAME}" "PinToTaskbarRequested" "1"
+  ${Else}
+    DeleteRegValue SHELL_CONTEXT "Software\${PRODUCT_NAME}" "PinToTaskbarRequested"
   ${EndIf}
+
+  # Old app builds registered startup under the AUMID name instead of
+  # ${PRODUCT_NAME}, which duplicated the entry on every update.
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "SKR.LuxLearn"
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "SKR.AutoBright"
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "SKR.LuxLearn"
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "SKR.AutoBright"
 
   ${If} $AutobrightValAutostart == ${BST_CHECKED}
     WriteRegStr SHELL_CONTEXT "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_NAME}" '"$appExe" --hidden'
