@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.5.0] - 2026-09-12
+
+### Added
+- **"What the app sees" card** on the Status page: a live readout of
+  the room-light estimate in lux, where that estimate comes from
+  (hardware sensor, camera raw sensor, face estimate, or scene
+  estimate — shown as a colored chip), the light's color temperature
+  when a raw-capable camera provides it, and whether a person is in
+  view. This makes the 1.4.0 raw-camera pipeline visible and shows
+  exactly how honest each reading is.
+
+### Changed
+- **Settings is grouped**: the flat wall of advanced settings is now
+  four labeled sections — Learning, How often it checks, History,
+  Adjustment rules — so related numbers sit together.
+- **Status is grouped**: the eleven status rows are organized into
+  Right now / Environment / Learning bands with small headers.
+- **Window title is now "LuxLearn"** everywhere, replacing the old
+  "SKR Auto Brightness" name that lingered on taskbar and Alt+Tab.
+- **Keyboard navigation in the sidebar**: arrow keys now move between
+  pages, matching the tab pattern screen readers announce.
+
+### Fixed
+- **Long translated labels no longer collide**: learned-weights rows
+  (visible in German, French, Russian, etc.) now truncate with an
+  ellipsis instead of running into the bars.
+- **Tooltips and accessibility labels are translated**: window buttons,
+  language/camera/display pickers, time steppers, chart hints, and
+  donate copy buttons were hardcoded English; all now follow the
+  app language across the 8 locales.
+- **Copy toasts are polite**: confirmation toasts no longer interrupt
+  screen readers mid-sentence (role alert → status).
+- **Donate page cleanup**: removed invalid markup on wallet addresses
+  and made the heart icon follow the theme.
+
 ## [1.4.1] - 2026-09-12
 
 ### Fixed
