@@ -34,6 +34,19 @@
   screen readers mid-sentence (role alert → status).
 - **Donate page cleanup**: removed invalid markup on wallet addresses
   and made the heart icon follow the theme.
+- **Backend re-probing after startup failure**: if a brightness backend
+  (e.g. DDC/CI) fails on launch because a monitor wasn't connected yet,
+  it now retries after 5 minutes instead of staying permanently failed.
+- **RTL layout for Persian**: the interface now switches to right-to-left
+  layout when Persian is selected, instead of rendering RTL text LTR.
+- **Matrix inversion singularity is now logged**: when the weighted
+  precision matrix is singular, a warning is emitted instead of silently
+  returning the identity matrix.
+- **Learning logs carry raw sensor values**: noise-smoothed ambient
+  readings were replacing the raw values stored in log entries; logs
+  now always record the original sensor reading.
+- **AUMID corrected**: the app user model ID was changed from the legacy
+  `SKR.LuxLearn` to `com.shah.LuxLearn` for consistent taskbar grouping.
 
 ## [1.4.1] - 2026-09-12
 
