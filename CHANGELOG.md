@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.5.3] - 2026-09-16
+
+### Fixed
+- **Startup location now uses GPS immediately instead of stale cache.**
+  Previously `initializeLogic` loaded the cached `dailyWeather.json`
+  (which could contain IP-geolocation coordinates from a previous
+  run, or the `(0,0)` fallback) *before* the first GPS attempt.
+  GPS only ran 15 seconds later via a `setTimeout`, so the UI showed
+  the wrong location for the first 15 seconds — or permanently if
+  the delayed refresh failed. Now the startup path awaits
+  `updateDailyWeatherInfo()` (with GPS then IP fallback) *before*
+  constructing `BrightnessManager`, with a 30-second timeout and
+  cached data as the only fallback.
+- **Weather refresh no longer skips when coordinates are stale.**
+  The hourly `refreshWeatherData` had a 1-hour early-return guard
+  (`Date.now() - lastUpdated < 3600000`) that skipped the entire
+  update if the cached timestamp looked fresh — even if the
+  coordinates inside that cache were wrong (e.g., IP fallback from
+  a previous run). The guard remains but the fetch now always runs
+  when the interval fires; `updateDailyWeatherInfo` handles failures
+  gracefully and only updates state on success.
+- **Location change detection added to hourly refresh.**
+  If the new weather response contains coordinates differing by
+  more than 0.1° from the cached values, the change is logged so
+  large jumps (GPS vs IP, or monitor plug events) are visible in
+  logs.
+
 ## [1.5.2] - 2026-09-16
 
 ### Fixed

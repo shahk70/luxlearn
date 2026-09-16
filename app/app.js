@@ -177,13 +177,29 @@ const MAX_INIT_RETRIES = 3;
 
 async function initializeLogic() {
     try {
-        const [loadedSettings, loadedWeather] = await Promise.all([
+        const [loadedSettings, cachedWeather] = await Promise.all([
             loadJSON(settingsPath, defaultSettings),
             loadJSON(WEATHER_JSON_PATH, {}),
         ]);
 
         state.settings = sanitizeSettings(loadedSettings, defaultSettings);
-        state.weather = loadedWeather;
+
+        // --- Fetch real weather with GPS BEFORE setting up BrightnessManager ---
+        // Cached data is only used if the live fetch fails entirely.
+        let weatherInfo = null;
+        try {
+            weatherInfo = await Promise.race([
+                updateDailyWeatherInfo(state.settings),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Startup weather fetch timeout')), 30000)),
+            ]);
+        } catch (e) {
+            console.warn('Live weather fetch failed, using cache:', e.message);
+        }
+        if (!weatherInfo || !Number.isFinite(weatherInfo.latitude)) {
+            weatherInfo = cachedWeather;
+        }
+        state.weather = weatherInfo || {};
+        try { await saveJSON(WEATHER_JSON_PATH, state.weather); } catch { /* non-critical */ }
 
         console.log('--- Brightness Manager Starting ---');
         brightnessManager = new BrightnessManager(state.settings);
@@ -208,15 +224,13 @@ async function initializeLogic() {
         updateTrayMenu();
         updateLoginItemSettings();
 
-        // One-time follow-up for users who ticked "pin to taskbar" in the
-        // installer: Windows refuses silent pinning, so surface how to do it.
         checkTaskbarPinRequest().then((result) => {
             if (result?.pinHint && mainWindow) {
                 sendToMainWindow('pin-hint', {});
             }
         });
 
-        setTimeout(() => refreshWeatherData(true), 15000).unref();
+        // Hourly background refresh (no separate initial call — already done above)
         setInterval(refreshWeatherData, WEATHER_REFRESH_INTERVAL_MS).unref();
 
         if (mainWindow) {
@@ -255,6 +269,13 @@ async function refreshWeatherData(isInitialLoad = false) {
     try {
         const newWeatherInfo = await updateDailyWeatherInfo(state.settings);
         if (newWeatherInfo) {
+            const oldLat = state.weather?.latitude;
+            const oldLon = state.weather?.longitude;
+            const coordsChanged = Number.isFinite(oldLat) && Number.isFinite(oldLon)
+                && (Math.abs(oldLat - newWeatherInfo.latitude) > 0.1 || Math.abs(oldLon - newWeatherInfo.longitude) > 0.1);
+            if (coordsChanged) {
+                console.log(`Location updated: (${oldLat},${oldLon}) -> (${newWeatherInfo.latitude},${newWeatherInfo.longitude})`);
+            }
             state.weather = newWeatherInfo;
             brightnessManager?.updateWeatherInfo(state.weather);
             if (mainWindow) sendWeatherUpdateToUI();
