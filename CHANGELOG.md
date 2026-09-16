@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.5.2] - 2026-09-16
+
+### Fixed
+- **GPS timeout too tight**: the PowerShell command waiting for
+  `GeoCoordinateWatcher.Status == 'Ready'` aborted after 5 seconds,
+  but on machines with no GPS hardware fix the sensor often needs
+  8–10 seconds. The in-script wait has been extended to 12 seconds
+  and the outer `execPowerShell` timeout increased from 10s to 20s.
+  Both values now match the observed 5–10s warm-up range with
+  comfortable margin.
+- **IP geolocation response format updated**: `ipGeolocation()` now
+  also checks `data.status === 'fail'` before extracting coordinates,
+  preventing a silently empty `null` result from being cached as
+  the valid location for 6 hours.
+
 ## [1.5.1] - 2026-09-16
 
 ### Fixed

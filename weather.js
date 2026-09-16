@@ -10,7 +10,7 @@ const CONFIG = {
     DEFAULT_LOCATION: { latitude: 0, longitude: 0 },
     LOCATION_CACHE_TTL_MS: 6 * 60 * 60 * 1000,
     MAX_LOCATION_DRIFT_KM: 50,
-    POWERSHELL_TIMEOUT_MS: 10000,
+    POWERSHELL_TIMEOUT_MS: 20000,
     API_TIMEOUT_MS: 8000,
     IP_GEOLOCATION_TIMEOUT_MS: 5000,
     DAILY_WEATHER_TTL_MS: 3600000, // 1 hour
@@ -59,7 +59,7 @@ try{
  $w=New-Object System.Device.Location.GeoCoordinateWatcher;
  $w.Start();
  $s=Get-Date;
- while($w.Status -ne 'Ready' -and (Get-Date) -lt $s.AddSeconds(5)){Start-Sleep -m 200}
+ while($w.Status -ne 'Ready' -and (Get-Date) -lt $s.AddSeconds(12)){Start-Sleep -m 300}
  if($w.Position.Location.IsUnknown){throw}
  @{lat=$w.Position.Location.Latitude;lon=$w.Position.Location.Longitude}|ConvertTo-Json -Compress
 }catch{Write-Output "{}"}
