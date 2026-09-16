@@ -379,7 +379,6 @@ async function ffmpegListCameras(format) {
         } else if (format === 'avfoundation' && /\(video\)/i.test(line)) {
           const m = line.match(/\[\d+\]\s+(.+?)\s*\(video\)/i);
           if (m) cams.push({ id: String(cams.length), name: m[1].trim() });
-        } else if (format === 'avfoundation' && avf && /\[[\d,]+\]/.test(avf[1]) === false && cams.length === 0 && line.includes('@')) {
         }
       }
       resolve(cams);

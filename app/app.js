@@ -69,7 +69,7 @@ const state = {
     availableUpdate: null,
 };
 
-if (process.platform === 'win32') app.setAppUserModelId('SKR.LuxLearn');
+if (process.platform === 'win32') app.setAppUserModelId('com.shah.LuxLearn');
 
 process.on('uncaughtException', (error) => {
     console.error('Uncaught exception in main process:', error);
@@ -924,6 +924,22 @@ ipcMain.handle('open-external', (_, url) => {
         return { success: true };
     }
     return { success: false, error: 'Blocked non-http(s) URL' };
+});
+ipcMain.handle('refresh-location', async () => {
+    try {
+        const { refreshLocationNow } = require('../weather');
+        const loc = await refreshLocationNow();
+        state.weather = await updateDailyWeatherInfo(state.settings);
+        if (state.weather) {
+            brightnessManager?.updateWeatherInfo(state.weather);
+            if (mainWindow) sendWeatherUpdateToUI();
+            saveJSON(WEATHER_JSON_PATH, state.weather);
+        }
+        return { ok: true, location: loc };
+    } catch (error) {
+        console.error('Location refresh failed:', error);
+        return { ok: false, error: error.message };
+    }
 });
 
 function createWindow() {

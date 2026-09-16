@@ -56,6 +56,8 @@ window.addEventListener('DOMContentLoaded', () => {
         try { localStorage.setItem('appLanguage', savedLocale); } catch { /* private mode */ }
         setLocale(savedLocale);
         applyStaticTranslations();
+        document.documentElement.lang = savedLocale;
+        document.documentElement.dir = savedLocale === 'fa' ? 'rtl' : 'ltr';
         const languageSelect = $('languageSelect');
         if (languageSelect) languageSelect.value = savedLocale;
     }
@@ -106,6 +108,7 @@ window.addEventListener('DOMContentLoaded', () => {
             manualOverrideMinutes: $('manual-override-minutes'),
             hysteresisPercent: $('hysteresis-percent'),
             adjustDuringLearning: $('adjustDuringLearning'),
+            refreshLocationBtn: $('refreshLocationBtn'),
         },
 
         location: { city: $('cityName'), sunrise: $('lightTime'), sunset: $('darkTime'), nextUpdate: $('nextUpdate') },
@@ -206,6 +209,8 @@ window.addEventListener('DOMContentLoaded', () => {
             } else {
                 setText(elems.location.nextUpdate, 'N/A');
             }
+            const btn = $('refreshLocationBtn');
+            if (btn) { btn.disabled = false; btn.textContent = t('settings.refreshLocation'); }
         });
     }
 
@@ -1454,6 +1459,12 @@ window.addEventListener('DOMContentLoaded', () => {
         window.api.onWeatherUpdate?.(updateLocationUI);
         window.api.onDynamicStatusUpdate?.(updateStatusUI);
         window.api.onLogUpdate?.(updateLogsUI);
+        $('refreshLocationBtn')?.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            btn.textContent = t('settings.refreshingLocation');
+            window.api.refreshLocation?.();
+        });
         bindUpdateDownloadEvents();
         window.api.onUpdateAvailable?.(showUpdateBanner);
         window.api.onOsSupportUpdate?.(renderOsSupport);

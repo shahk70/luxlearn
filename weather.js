@@ -6,7 +6,7 @@ const { loadJSON, retry, WEATHER_JSON_PATH, DEFAULT_SUNRISE, DEFAULT_SUNSET, PLA
 const CONFIG = {
     WEATHERAPI_URL: 'https://api.weatherapi.com/v1/forecast.json',
     OPEN_METEO_URL: 'https://api.open-meteo.com/v1/forecast',
-    IP_GEOLOCATION_URL: 'https://ipapi.co/json/',
+    IP_GEOLOCATION_URL: 'https://ip-api.com/json/?fields=status,lat,lon,city,countryCode,query',
     DEFAULT_LOCATION: { latitude: 0, longitude: 0 },
     LOCATION_CACHE_TTL_MS: 6 * 60 * 60 * 1000,
     MAX_LOCATION_DRIFT_KM: 50,
@@ -59,7 +59,7 @@ try{
  $w=New-Object System.Device.Location.GeoCoordinateWatcher;
  $w.Start();
  $s=Get-Date;
- while($w.Status-ne'Ready'-and(Get-Date)-lt $s.AddSeconds(5)){Start-Sleep -m 200}
+ while($w.Status -ne 'Ready' -and (Get-Date) -lt $s.AddSeconds(5)){Start-Sleep -m 200}
  if($w.Position.Location.IsUnknown){throw}
  @{lat=$w.Position.Location.Latitude;lon=$w.Position.Location.Longitude}|ConvertTo-Json -Compress
 }catch{Write-Output "{}"}
@@ -98,20 +98,26 @@ async function ipGeolocation() {
         const res = await fetch(CONFIG.IP_GEOLOCATION_URL, { signal: controller.signal });
         if (!res.ok) throw new Error(`IP geolocation API ${res.status}`);
         const data = await res.json();
-        const lat = Number(data?.latitude);
-        const lon = Number(data?.longitude);
+        if (data?.status === 'fail') throw new Error('IP geolocation lookup failed');
+        const lat = Number(data?.lat ?? data?.latitude);
+        const lon = Number(data?.lon ?? data?.longitude);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
             throw new Error('IP geolocation response missing coordinates');
         }
-        return { latitude: lat, longitude: lon };
+        return { latitude: lat, longitude: lon, city: data.city };
     } finally {
         clearTimeout(timeout);
     }
 }
 
-async function findLocation() {
+function isValidCoord(loc) {
+    return Number.isFinite(loc?.latitude) && Number.isFinite(loc?.longitude)
+        && (Math.abs(loc.latitude) > 0.01 || Math.abs(loc.longitude) > 0.01);
+}
+
+async function findLocation(forceRefresh = false) {
     const now = Date.now();
-    if (memCache.location && (now - memCache.timestamp < CONFIG.LOCATION_CACHE_TTL_MS)) {
+    if (!forceRefresh && memCache.location && (now - memCache.timestamp < CONFIG.LOCATION_CACHE_TTL_MS)) {
         return memCache.location;
     }
 
@@ -121,7 +127,7 @@ async function findLocation() {
         try {
             const output = await execPowerShell(PS_COMMAND, CONFIG.POWERSHELL_TIMEOUT_MS);
             const data = JSON.parse(output);
-            if (data && data.lat) loc = { latitude: data.lat, longitude: data.lon };
+            if (data && data.lat && data.lon) loc = { latitude: data.lat, longitude: data.lon };
         } catch (error) {
         }
     }
@@ -133,12 +139,14 @@ async function findLocation() {
         }
     }
 
-    if (!loc) {
+    if (!loc || !isValidCoord(loc)) {
+        if (forceRefresh) memCache = { location: null, timestamp: 0 };
         return lastAcceptedLocation || CONFIG.DEFAULT_LOCATION;
     }
 
     if (!isPlausibleDrift(loc)) {
         const fallback = lastAcceptedLocation || CONFIG.DEFAULT_LOCATION;
+        lastAcceptedLocation = loc;
         memCache = { location: fallback, timestamp: now };
         return fallback;
     }
@@ -146,6 +154,16 @@ async function findLocation() {
     lastAcceptedLocation = loc;
     memCache = { location: loc, timestamp: now };
     return loc;
+}
+
+function resetLocationCache() {
+    memCache = { location: null, timestamp: 0 };
+    lastAcceptedLocation = null;
+}
+
+async function refreshLocationNow() {
+    resetLocationCache();
+    return findLocation(true);
 }
 
 function getTimeZoneOffsetMs(timeZone, date) {
@@ -399,4 +417,4 @@ async function updateDailyWeatherInfo(userSettings = {}) {
     return result;
 }
 
-module.exports = { updateDailyWeatherInfo };
+module.exports = { updateDailyWeatherInfo, refreshLocationNow };

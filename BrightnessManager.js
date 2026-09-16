@@ -6,7 +6,7 @@ const { getWebCamBrightness } = require('./webcam');
 const {
   getCurrentWindow, screenAvgBrightness, getPowerStatus, getNightLightState,
   detectDeviceProfile, getSystemBrightness, setSystemBrightness,
-  hasAmbientLightSensor, readAmbientLightLux,
+  hasAmbientLightSensor, readAmbientLightLux, unlatchFailedBackends,
 } = require('./signals');
 
 const ONE_DAY_MS = 86400000;
@@ -168,7 +168,10 @@ function invertMatrix(matrix, ridge = 1e-6) {
       const abs = Math.abs(A[r][col]);
       if (abs > maxAbs) { maxAbs = abs; pivotRow = r; }
     }
-    if (maxAbs < 1e-10) return identityMatrix(n);
+    if (maxAbs < 1e-10) {
+      console.warn('[BrightnessManager] invertMatrix: singular or near-singular matrix (maxAbs=', maxAbs, '), returning identity');
+      return identityMatrix(n);
+    }
 
     if (pivotRow !== col) {
       [A[col], A[pivotRow]] = [A[pivotRow], A[col]];
@@ -262,6 +265,7 @@ class BrightnessManager extends EventEmitter {
   #lastAmbientStateAt = 0;
   #deferredFirstCycle = null;
   #adjustingResetTimer = null;
+  #lastBackendReprobeAt = 0;
 
   constructor(initialSettings) {
     super();
@@ -1145,7 +1149,6 @@ class BrightnessManager extends EventEmitter {
         if (medianAmbient !== null) ambientLightVal = medianAmbient;
       }
     }
-
     return {
       webcamScore,
       faceCount,
@@ -1504,11 +1507,12 @@ class BrightnessManager extends EventEmitter {
   }
 
   async _logChange(brightness, type, ambientStateOverride = null) {
-    const ambientState = ambientStateOverride ?? this._getReusableAmbientState() ?? (await this._getAmbientReadings());
-    if (!ambientState) {
+    const rawAmbient = ambientStateOverride ?? this._getReusableAmbientState() ?? (await this._getAmbientReadings());
+    if (!rawAmbient) {
       this._emitLog('error', 'Log skipped: Sensor read failed.');
       return;
     }
+    const ambientState = JSON.parse(JSON.stringify(rawAmbient));
     const now = Date.now();
 
     const prev = this.logs.length ? this.logs[this.logs.length - 1] : null;
@@ -1767,6 +1771,10 @@ class BrightnessManager extends EventEmitter {
 
   async _pollSystemState() {
     if (this.isAdjusting || this.#isGettingBrightness) return;
+    if (Date.now() - this.#lastBackendReprobeAt > 5 * 60 * 1000) {
+      this.#lastBackendReprobeAt = Date.now();
+      try { unlatchFailedBackends(); } catch { /* ignore */ }
+    }
     try {
       const currentBrightness = await this._getSystemBrightness();
       if (currentBrightness === null) return;

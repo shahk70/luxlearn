@@ -59,5 +59,6 @@ contextBridge.exposeInMainWorld('api', {
      onUpdateAvailable: (callback) => subscribe('update-available', callback),
      onOsSupportUpdate: (callback) => subscribe('os-support-update', callback),
      onPinHint: (callback) => subscribe('pin-hint', callback),
-     openExternal: (url) => ipcRenderer.invoke('open-external', url)
+     openExternal: (url) => ipcRenderer.invoke('open-external', url),
+     refreshLocation: () => ipcRenderer.invoke('refresh-location')
 });

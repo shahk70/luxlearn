@@ -212,7 +212,8 @@ function execPowerShell(command, timeoutMs = DEFAULT_PS_TIMEOUT_MS) {
     }, timeoutMs);
 
     const encoded = Buffer.from(command, 'utf16le').toString('base64');
-    exec(`"${PS_EXE}" -NoProfile -EncodedCommand ${encoded}`, { signal: controller.signal, windowsHide: true }, (err, stdout) => {
+    const { execFile } = require('child_process');
+    execFile(PS_EXE, ['-NoProfile', '-EncodedCommand', encoded], { signal: controller.signal, windowsHide: true }, (err, stdout) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
@@ -236,7 +237,7 @@ module.exports = {
   // paths
   learningConfigPath, brightnessLogsPath, settingsPath, ICON_PATH, ICON_PNG_PATH, WEATHER_JSON_PATH,
   // settings
-  defaultSettings, DEFAULT_SUNRISE, DEFAULT_SUNSET, sanitizeSettings,
+  defaultSettings, DEFAULT_SUNRISE, DEFAULT_SUNSET, sanitizeSettings, deepFreeze,
   // persistence / flow
   loadJSON, saveJSON, retry,
   // exec helpers

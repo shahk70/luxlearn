@@ -1611,6 +1611,26 @@ const I18N = {
     "ru": "Следующее обновление:",
     "zh": "下次更新："
   },
+  "settings.refreshLocation": {
+    "en": "Refresh location",
+    "de": "Standort aktualisieren",
+    "fa": "به‌روزرسانی مکان",
+    "tr": "Konumu yenile",
+    "es": "Actualizar ubicación",
+    "fr": "Actualiser la position",
+    "ru": "Обновить местоположение",
+    "zh": "刷新位置"
+  },
+  "settings.refreshingLocation": {
+    "en": "Refreshing...",
+    "de": "Aktualisiere...",
+    "fa": "در حال به‌روزرسانی...",
+    "tr": "Yenileniyor...",
+    "es": "Actualizando...",
+    "fr": "Actualisation...",
+    "ru": "Обновление...",
+    "zh": "刷新中..."
+  },
   "toast.saveFailed": {
     "en": "Could not save settings.",
     "de": "Einstellungen konnten nicht gespeichert werden.",

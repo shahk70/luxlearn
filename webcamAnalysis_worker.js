@@ -560,11 +560,6 @@ function demosaicRaw(buffer, width, height, pattern, bitDepth = 8) {
   return rgba;
 }
 
-async function decodeLossyToRgba(imageBuffer) {
-  const { data, info } = await sharp(Buffer.from(imageBuffer)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  return { buffer: new Uint8ClampedArray(data.buffer, data.byteOffset, data.byteLength), width: info.width, height: info.height };
-}
-
 // Mean of each Bayer color channel straight from the mosaic plane, without
 // demosaicing. Each sensor site holds one channel; the 2x2 mosaic phase
 // (pattern) says which. Values normalized to 0-255 for depth parity with

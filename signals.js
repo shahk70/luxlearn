@@ -677,10 +677,10 @@ async function winListWmiInstances() {
 }
 
 async function winGet() {
-  if (winCandidateStatus.get('wmi') === 'ok') return winGetWmi();
-  if (winCandidateStatus.get('cim') === 'ok') return winGetCim();
-  if (winCandidateStatus.get('ddc') === 'ok') return winGetDdc();
-  const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id));
+  if (_backendOk(winCandidateStatus, 'wmi')) return winGetWmi();
+  if (_backendOk(winCandidateStatus, 'cim')) return winGetCim();
+  if (_backendOk(winCandidateStatus, 'ddc')) return winGetDdc();
+  const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id) || _backendFailed(winCandidateStatus, id));
   if (unprobed.length === 0) throw winUnsupportedError();
   const fns = { wmi: () => winGetWmi(), cim: () => winGetCim(), ddc: () => winGetDdc() };
   for (const id of unprobed) {
@@ -689,7 +689,7 @@ async function winGet() {
       winCandidateStatus.set(id, 'ok');
       return value;
     } catch {
-      winCandidateStatus.set(id, 'fail');
+      winCandidateStatus.set(id, { status: 'fail', t: Date.now() });
     }
   }
   throw winUnsupportedError();
@@ -702,19 +702,19 @@ async function winSet(value, opts = {}) {
   }
   const clamped = Math.min(100, Math.max(0, Math.round(numeric)));
   const display = opts.display ?? 'all';
-  if (winCandidateStatus.get('wmi') === 'ok') {
+  if (_backendOk(winCandidateStatus, 'wmi')) {
     await execAsync(WIN_SET_CMD_WMI(clamped));
     return;
   }
-  if (winCandidateStatus.get('cim') === 'ok') {
+  if (_backendOk(winCandidateStatus, 'cim')) {
     await winSetCimInstance(clamped, display === 'all' ? null : display);
     return;
   }
-  if (winCandidateStatus.get('ddc') === 'ok') {
+  if (_backendOk(winCandidateStatus, 'ddc')) {
     await winSetDdc(clamped, display);
     return;
   }
-  const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id));
+  const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id) || _backendFailed(winCandidateStatus, id));
   if (unprobed.length === 0) throw winUnsupportedError();
   for (const id of unprobed) {
     try {
@@ -724,7 +724,7 @@ async function winSet(value, opts = {}) {
       winCandidateStatus.set(id, 'ok');
       return;
     } catch {
-      winCandidateStatus.set(id, 'fail');
+      winCandidateStatus.set(id, { status: 'fail', t: Date.now() });
     }
   }
   throw winUnsupportedError();
@@ -764,15 +764,15 @@ async function resolveMacBackend(preferred) {
   ];
   const ordered = preferred ? [...chain.filter(c => c.type === preferred), ...chain.filter(c => c.type !== preferred)] : chain;
   for (const entry of ordered) {
+    if (_backendFailed(macCandidateStatus, entry.type)) continue;
     const status = macCandidateStatus.get(entry.type);
-    if (status === 'fail') continue;
     if (status && status.bin) return status;
     const backend = await entry.probe();
     if (backend) {
       macCandidateStatus.set(entry.type, backend);
       return backend;
     }
-    macCandidateStatus.set(entry.type, 'fail');
+    macCandidateStatus.set(entry.type, { status: 'fail', t: Date.now() });
   }
   return null;
 }
@@ -857,8 +857,8 @@ function isWaylandSession() {
 
 async function resolveLinuxBackend() {
   for (const name of LINUX_BACKEND_ORDER) {
-    if (linuxCandidateStatus.get(name) === 'fail') continue;
-    if (linuxCandidateStatus.get(name) === 'ok') return name;
+    if (_backendFailed(linuxCandidateStatus, name)) continue;
+    if (_backendOk(linuxCandidateStatus, name)) return name;
     const exists = await commandExists(name);
     linuxCandidateStatus.set(name, exists ? 'ok' : 'absent');
     if (exists) return name;
@@ -910,6 +910,37 @@ function markLinuxBackendUsed(name) {
 
 function markLinuxBackendFailed(name) {
   linuxCandidateStatus.set(name, 'fail');
+}
+
+const BACKEND_REPROBE_TTL_MS = 5 * 60 * 1000;
+
+function _backendFailed(map, id) {
+  const v = map.get(id);
+  if (!v) return false;
+  if (v === 'fail') return true;
+  if (v.status === 'fail') {
+    if (Date.now() - v.t <= BACKEND_REPROBE_TTL_MS) return true;
+    map.delete(id);
+    return false;
+  }
+  return false;
+}
+function _backendOk(map, id) {
+  const v = map.get(id);
+  if (v === 'ok') return true;
+  return v && typeof v === 'object' && v.status === 'ok';
+}
+
+function unlatchFailedBackends() {
+  const now = Date.now();
+  for (const map of [winCandidateStatus, macCandidateStatus, linuxCandidateStatus]) {
+    for (const [id, entry] of map) {
+      let stale = false;
+      if (entry === 'fail') stale = true;
+      else if (entry && typeof entry === 'object' && entry.status === 'fail' && entry.t && now - entry.t > BACKEND_REPROBE_TTL_MS) stale = true;
+      if (stale) map.delete(id);
+    }
+  }
 }
 
 async function linuxGet() {
@@ -1113,5 +1144,5 @@ module.exports = {
   getSystemBrightness, setSystemBrightness, getBrightnessBackendName, listDisplays,
   hasAmbientLightSensor, readAmbientLightLux, getPowerStatus, getNightLightState,
   detectDeviceProfile, getCurrentWindow, getActiveWindowInfo, getActiveWindowSafe: getActiveWindowInfo,
-  screenAvgBrightness,
+  screenAvgBrightness, unlatchFailedBackends,
 };
