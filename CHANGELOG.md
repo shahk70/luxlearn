@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.5.4] - 2026-09-16
+
+### Fixed
+- **No more launch freeze.** The v1.5.3 startup path awaited the full
+  GPS → IP → weather chain (up to 30 seconds) before drawing the
+  window or starting the brightness manager — the app sat on a black
+  screen whenever the location sensor was slow. Startup now loads the
+  cached weather instantly, renders the window, constructs
+  BrightnessManager and starts all loops — then fires the GPS refresh
+  in the background and pushes the result to the renderer the moment
+  it arrives. The app always opens immediately; real GPS data just
+  lands a few seconds later.
+- **"Refresh location" no longer freezes the Settings UI.**
+  The IPC handler previously awaited GPS + weather before replying,
+  locking the renderer the whole time. It now returns instantly and
+  does the work in the background; the button's enabled/refreshing
+  state flips back when the `weather-update` push arrives.
+
 ## [1.5.3] - 2026-09-16
 
 ### Fixed
