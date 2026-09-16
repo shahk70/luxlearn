@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.5] - 2026-09-16
+
+### Fixed
+- **Update download now properly awaits completion.**
+  The IPC handler for `downloadUpdate` previously returned immediately
+  without waiting for the actual download, so the renderer treated it
+  as success while the 98 MB installer was still being fetched. If the
+  connection dropped or was slow, the user only saw "Download failed"
+  with no retry path. The handler now listens for the `update-downloaded`
+  and `error` events with a 5-minute timeout, returning a real success/
+  failure result. The `error` event listener uses `.once()` so it never
+  interferes with the main updater's own error handler.
+- **Download progress events correctly wired to UI.**
+  The renderer already displayed percentage progress; no logic change
+  needed there, but the new handler ensures the completion event fires.
+
 ## [1.5.4] - 2026-09-16
 
 ### Fixed

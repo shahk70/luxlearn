@@ -744,9 +744,40 @@ ipcMain.handle('about:check-updates', async () => {
 ipcMain.handle('about:download-update', async () => {
     if (!autoUpdater) return { success: false, error: 'updater-unavailable' };
     try {
-        await autoUpdater.downloadUpdate();
-        return { success: true };
+        const result = await new Promise((resolve, reject) => {
+            const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes — installer is ~98 MB
+            let settled = false;
+
+            const timer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                reject(new Error('Download timed out after 5 minutes'));
+            }, TIMEOUT_MS);
+
+            // .once() auto-removes after first fire; no removeAllListeners needed
+            autoUpdater.once('update-downloaded', () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve({ success: true });
+            });
+            autoUpdater.once('error', (err) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                reject(err);
+            });
+
+            autoUpdater.downloadUpdate().catch((err) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                reject(err);
+            });
+        });
+        return result;
     } catch (err) {
+        console.warn('Download update failed:', err.message);
         return { success: false, error: err.message };
     }
 });
