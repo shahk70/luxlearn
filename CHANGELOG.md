@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.5.1] - 2026-09-16
+
+### Fixed
+- **GPS location detection broken by shell escaping**: the PowerShell
+  command that reads Windows `GeoCoordinateWatcher` coordinates was
+  losing its `$w` variables during shell interpolation —
+  `execPowerShell` now uses `execFile` (no shell), so the GPS sensor
+  returns correct coordinates instead of falling back silently to
+  IP geolocation or the last cached location.
+- **IP geolocation provider rate-limited**: `ipapi.co` had begun
+  returning HTTP 429 for the bundled fallback, so if the GPS sensor
+  was unavailable (desktop PC, service disabled) location resolution
+  fell back to a 6-hour-stale cache or `DEFAULT_LOCATION (0,0)`.
+  Replaced with `ip-api.com`, a free keyless provider that responds
+  reliably without keys.
+- **Location `(0,0)` no longer accepted**: an explicit coordinate
+  validation now rejects anything within 0.01 degrees of the origin,
+  which previously made the app believe it was in the Gulf of Guinea.
+- **Stale location cache trap**: when `isPlausibleDrift` rejected a
+  new location as implausible, `lastAcceptedLocation` was never
+  updated — so after the 6-hour cache expired, the next lookup
+  compared against the original stale value and rejected again,
+  locking the app onto the wrong location permanently.
+- **Manual location refresh path**: a new "Refresh location" button
+  on the Status card (all 8 locales) clears the cache and re-runs
+  GPS then IP geolocation, then re-fetches weather — no restart
+  needed.
+- **Weather no longer silently stops updating**: the hourly refresh
+  now runs its weather API call even when `lastUpdated` looks
+  recent; previously, if the call failed on one cycle, the old
+  timestamp stayed frozen and all subsequent hourly checks skipped
+  the refresh because `Date.now() - lastUpdated` still satisfied
+  the 1-hour guard.
+
 ## [1.5.0] - 2026-09-12
 
 ### Added
