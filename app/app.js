@@ -183,23 +183,7 @@ async function initializeLogic() {
         ]);
 
         state.settings = sanitizeSettings(loadedSettings, defaultSettings);
-
-        // --- Fetch real weather with GPS BEFORE setting up BrightnessManager ---
-        // Cached data is only used if the live fetch fails entirely.
-        let weatherInfo = null;
-        try {
-            weatherInfo = await Promise.race([
-                updateDailyWeatherInfo(state.settings),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Startup weather fetch timeout')), 30000)),
-            ]);
-        } catch (e) {
-            console.warn('Live weather fetch failed, using cache:', e.message);
-        }
-        if (!weatherInfo || !Number.isFinite(weatherInfo.latitude)) {
-            weatherInfo = cachedWeather;
-        }
-        state.weather = weatherInfo || {};
-        try { await saveJSON(WEATHER_JSON_PATH, state.weather); } catch { /* non-critical */ }
+        state.weather = cachedWeather || {};
 
         console.log('--- Brightness Manager Starting ---');
         brightnessManager = new BrightnessManager(state.settings);
@@ -223,18 +207,19 @@ async function initializeLogic() {
 
         updateTrayMenu();
         updateLoginItemSettings();
+        if (mainWindow) sendWeatherUpdateToUI();
 
         checkTaskbarPinRequest().then((result) => {
-            if (result?.pinHint && mainWindow) {
-                sendToMainWindow('pin-hint', {});
-            }
+            if (result?.pinHint && mainWindow) sendToMainWindow('pin-hint', {});
         });
 
-        // Hourly background refresh (no separate initial call — already done above)
         setInterval(refreshWeatherData, WEATHER_REFRESH_INTERVAL_MS).unref();
 
+        // --- Background: fetch real GPS weather, push update when ready ---
+        // Never blocks startup — cached data already shown by the time this resolves.
+        refreshWeatherData(true);
+
         if (mainWindow) {
-            sendWeatherUpdateToUI();
             sendToMainWindow('settings-updated', {
                 settings: state.settings,
                 learningConfig: brightnessManager?.learningConfig || {},
@@ -947,20 +932,18 @@ ipcMain.handle('open-external', (_, url) => {
     return { success: false, error: 'Blocked non-http(s) URL' };
 });
 ipcMain.handle('refresh-location', async () => {
-    try {
-        const { refreshLocationNow } = require('../weather');
-        const loc = await refreshLocationNow();
-        state.weather = await updateDailyWeatherInfo(state.settings);
-        if (state.weather) {
-            brightnessManager?.updateWeatherInfo(state.weather);
-            if (mainWindow) sendWeatherUpdateToUI();
-            saveJSON(WEATHER_JSON_PATH, state.weather);
+    // Return immediately so renderer stays responsive.
+    // Result arrives via sendWeatherUpdateToUI when background work finishes.
+    (async () => {
+        try {
+            const { refreshLocationNow } = require('../weather');
+            await refreshLocationNow();
+            await refreshWeatherData(true);
+        } catch (error) {
+            console.error('Location refresh failed:', error);
         }
-        return { ok: true, location: loc };
-    } catch (error) {
-        console.error('Location refresh failed:', error);
-        return { ok: false, error: error.message };
-    }
+    })();
+    return { ok: true };
 });
 
 function createWindow() {
