@@ -291,6 +291,9 @@ class BrightnessManager extends EventEmitter {
 
   #initializeStats() {
     this.#stats.clear();
+    // Stale noise estimates would otherwise persist across learning resets
+    // and skew early feature-importance recalibration.
+    this.#noiseStats.clear();
     for (let i = 0; i < this.#numericKeys.length; i++) {
       const feature = this.#numericKeys[i];
       this.#stats.set(feature, { sum: 0, sumSq: 0, count: 0, mean: 0, std: 1 });
@@ -1607,9 +1610,16 @@ class BrightnessManager extends EventEmitter {
         ...this.learningConfig,
         startTime: new Date(this.learningConfig.startTime).toISOString()
       };
+      // Compact JSON saves ~50% disk vs pretty-printed; truncation to last
+      // logLimit entries prevents unbounded growth of brightnessLogs.json
+      // (the in-memory array is already bounded, but on-disk JSON stays
+      // 2× because of the pretty-printing overhead on nested objects).
+      const diskLogs = this.logs.length > this.settings.logLimit
+        ? this.logs.slice(-this.settings.logLimit)
+        : logsToSave;
       await Promise.all([
         saveJSON(learningConfigPath, configToSave),
-        saveJSON(brightnessLogsPath, logsToSave)
+        saveJSON(brightnessLogsPath, diskLogs, { compact: true })
       ]);
       this.#isDirty = false;
     } catch (error) {
@@ -1794,12 +1804,16 @@ class BrightnessManager extends EventEmitter {
               if (this.lastKnownBrightness !== observed) return;
               this.lastKnownBrightness = observed;
               await this._handleManualChange(previous, observed);
-            } catch { /* ignore */ }
+            } catch (err) {
+              console.warn('[BrightnessManager] Manual-change confirm failed:', err?.message || err);
+            }
           }, CONFIG.ALGORITHM.MANUAL_CHANGE_CONFIRM_DELAY_MS);
         }
       }
       this.lastKnownBrightness = currentBrightness;
-    } catch (error) { /* ignore */ }
+    } catch (error) {
+      console.warn('[BrightnessManager] _pollSystemState failed:', error?.message || error);
+    }
   }
 
   async _handleManualChange(previousBrightness, newBrightness) {

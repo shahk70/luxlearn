@@ -92,6 +92,7 @@ async function ffmpegListRawFormats(device) {
         ? ['-hide_banner', '-list_formats', 'all', '-f', 'avfoundation', '-i', device || '0']
         : ['-hide_banner', '-list_formats', 'all', '-f', 'v4l2', '-i', device || '/dev/video0'];
     execFile(bin, args, { timeout: TIMEOUT_MS, windowsHide: true, maxBuffer: MAX_BUFFER }, (err, stdout, stderr) => {
+      if (err) console.warn('[webcam] raw-format probe stderr:', (stderr || stdout || err.message).slice(0, 200));
       resolve(parseRawFormatLines(stderr || stdout));
     });
   });
@@ -193,7 +194,13 @@ async function captureRawFrame(device) {
     }
     return null;
   } finally {
-    fs.promises.unlink(outFile).catch(() => { });
+    // Best-effort cleanup; log (but don't throw) so a persistent tmpdir
+    // failure is at least diagnosable instead of silently orphaning files.
+    fs.promises.unlink(outFile).catch((err) => {
+      if (err && err.code !== 'ENOENT') {
+        console.warn('[webcam] Failed to remove temp raw frame:', err.message);
+      }
+    });
   }
 }
 
@@ -485,7 +492,11 @@ async function captureWithCandidate(candidate, device) {
     if (e.code === 'ENOENT') throw new Error('Camera device not found or inaccessible.');
     throw e;
   } finally {
-    fs.promises.unlink(outFile).catch(() => { });
+    fs.promises.unlink(outFile).catch((err) => {
+      if (err && err.code !== 'ENOENT') {
+        console.warn('[webcam] Failed to remove temp capture file:', err.message);
+      }
+    });
   }
 }
 
@@ -593,6 +604,13 @@ function getWorker() {
 
 function analyzeInWorker(payload) {
   return new Promise((resolve, reject) => {
+    // Guard against unbounded queue growth when the worker is wedged — cap at
+    // 5 pending analyses (avoids OOM while still tolerating one slow frame).
+    const MAX_PENDING = 5;
+    if (pending.size >= MAX_PENDING) {
+      reject(new Error('Analysis worker queue full — frame dropped'));
+      return;
+    }
     const id = nextRequestId++;
     const timeout = setTimeout(() => {
       pending.delete(id);

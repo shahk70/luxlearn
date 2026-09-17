@@ -129,6 +129,7 @@ async function findLocation(forceRefresh = false) {
             const data = JSON.parse(output);
             if (data && data.lat && data.lon) loc = { latitude: data.lat, longitude: data.lon };
         } catch (error) {
+            console.warn('[weather] PowerShell geolocation lookup failed:', error?.message || error);
         }
     }
 
@@ -136,6 +137,7 @@ async function findLocation(forceRefresh = false) {
         try {
             loc = await ipGeolocation();
         } catch (error) {
+            console.warn('[weather] IP geolocation lookup failed:', error?.message || error);
         }
     }
 

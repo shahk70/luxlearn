@@ -513,12 +513,18 @@ async function winGetWmi() {
 }
 
 async function winGetCim(instance) {
-  let cmd = 'powershell.exe -NoProfile -Command "(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness).CurrentBrightness"';
+  // Note: instance names flow inside a single-quoted PowerShell string, where
+  // only the single quote itself needs doubling ('' is the PS escape).
+  // $-signs and backticks are literal inside single quotes, so no further
+  // escaping is needed. We route through execPowerShell (base64
+  // -EncodedCommand) to avoid the extra cmd.exe quoting layer entirely.
+  const { execPowerShell } = require('./core');
+  let ps = '(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness).CurrentBrightness';
   if (instance) {
-    const escaped = instance.replace(/'/g, "''");
-    cmd = `powershell.exe -NoProfile -Command "Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness | Where-Object { $_.InstanceName -like '*${escaped}*' } | Select-Object -First 1 -ExpandProperty CurrentBrightness"`;
+    const escaped = String(instance).replace(/'/g, "''");
+    ps = `Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness | Where-Object { $_.InstanceName -like '*${escaped}*' } | Select-Object -First 1 -ExpandProperty CurrentBrightness`;
   }
-  const { stdout } = await execAsync(cmd);
+  const stdout = await execPowerShell(ps);
   const lines = String(stdout || '').trim().split(/\s+/).map(Number).filter(Number.isInteger);
   const value = lines.length > 0 ? lines[0] : NaN;
   if (!Number.isInteger(value)) {
@@ -528,13 +534,16 @@ async function winGetCim(instance) {
 }
 
 async function winSetCimInstance(clamped, instance) {
+  const { execPowerShell } = require('./core');
+  const brightness = Math.max(0, Math.min(100, Math.round(Number(clamped))));
+  if (!Number.isInteger(brightness)) throw new Error(`Invalid brightness value: ${clamped}`);
   if (!instance) {
-    await execAsync(`powershell.exe -NoProfile -Command "Invoke-CimMethod -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods -MethodName WmiSetBrightness -Arguments @{Timeout=1; Brightness=${clamped}}"`);
+    await execPowerShell(`Invoke-CimMethod -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods -MethodName WmiSetBrightness -Arguments @{Timeout=1; Brightness=${brightness}}`);
     return;
   }
-  const escaped = instance.replace(/'/g, "''");
-  await execAsync(
-    `powershell.exe -NoProfile -Command "Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods | Where-Object { $_.InstanceName -like '*${escaped}*' } | Invoke-CimMethod -MethodName WmiSetBrightness -Arguments @{Timeout=1; Brightness=${clamped}}"`
+  const escaped = String(instance).replace(/'/g, "''");
+  await execPowerShell(
+    `Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods | Where-Object { $_.InstanceName -like '*${escaped}*' } | Invoke-CimMethod -MethodName WmiSetBrightness -Arguments @{Timeout=1; Brightness=${brightness}}`
   );
 }
 

@@ -1,8 +1,6 @@
-// app.js — Electron main process (entry point; loads .env first).
+// app.js — Electron main process (entry point; .env loaded in index.js).
 // To build a distributable, use one of the packaging scripts in package.json,
 // e.g. `npm run dist:win` / `npm run dist:mac` / `npm run dist:linux`.
-
-require('dotenv').config();
 
 const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog, shell, systemPreferences } = require('electron');
 const path = require('path');
@@ -22,6 +20,7 @@ const REPO_OWNER = 'shahk70';
 const REPO_NAME = 'luxlearn';
 
 let autoUpdater = null;
+let downloadInProgress = false;
 try {
     const { autoUpdater: au } = require('electron-updater');
     autoUpdater = au;
@@ -29,10 +28,23 @@ try {
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.logger = console;
     autoUpdater.on('update-available', (info) => {
+        // GitHub releaseNotes may be a string, markdown text, or an array of
+        // note entries; normalise to plain text for the renderer banner.
+        let notes = '';
+        if (typeof info.releaseNotes === 'string') {
+            notes = info.releaseNotes;
+        } else if (Array.isArray(info.releaseNotes)) {
+            notes = info.releaseNotes
+                .map((entry) => (typeof entry === 'string' ? entry : entry?.note || entry?.body || ''))
+                .filter(Boolean)
+                .join('\n');
+        } else if (info.releaseNotes) {
+            notes = String(info.releaseNotes.note || info.releaseNotes.body || '');
+        }
         sendToMainWindow('update-available', {
             version: info.version,
             url: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/tag/v${info.version}`,
-            notes: typeof info.releaseNotes === 'string' ? info.releaseNotes : '',
+            notes,
             source: 'electron-updater',
         });
     });
@@ -743,6 +755,8 @@ ipcMain.handle('about:check-updates', async () => {
 
 ipcMain.handle('about:download-update', async () => {
     if (!autoUpdater) return { success: false, error: 'updater-unavailable' };
+    if (downloadInProgress) return { success: false, error: 'download-already-in-progress' };
+    downloadInProgress = true;
     try {
         const result = await new Promise((resolve, reject) => {
             const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes — installer is ~98 MB
@@ -779,6 +793,8 @@ ipcMain.handle('about:download-update', async () => {
     } catch (err) {
         console.warn('Download update failed:', err.message);
         return { success: false, error: err.message };
+    } finally {
+        downloadInProgress = false;
     }
 });
 ipcMain.handle('about:install-update', () => {

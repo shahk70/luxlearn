@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.5.6] - 2026-09-17
+
+### Security & Hardening
+- **Documented bundled WeatherAPI keys** (`weather.js`) and updated `SECURITY.md` to reflect the actual key-loading order and quota caveat — the old note claiming "no hardcoded keys" was incorrect.
+- **Removed shell interpolation** in `core.commandExists()` and `signals.winGetCim/winSetCimInstance` — both now route through `execFile` / `execPowerShell` with base64-encoded commands, eliminating any latent injection surface.
+- **Release pipeline uses `npm ci`** for reproducible builds (`release.yml`).
+- **Updater download race fixed** — retry button now guarded against calling `downloadUpdate()` while a previous download is still active.
+- **Updater release notes now parse arrays** — GitHub's `releaseNotes` field may be a string, markdown array, or objects; all shapes are normalised for the in-app banner.
+- **Webcam analysis worker queue capped** at 5 pending frames to prevent unbounded memory growth if the OpenCV worker wedges.
+- **Renderer activity poll respects visibility** — only runs when the tab/window is visible, with bounded retry on transient errors.
+- **Electron bumped to 36.8+** (locked to 36.9.5) — stays on a supported major with recent Chromium patches.
+
+### Fixed
+- **brightnessLogs.json no longer grows unbounded** — in-memory `logLimit` (default 240, max 2000) is now enforced on disk and JSON is written compact (no pretty-print) to halve file size.
+- **Stale noise stats cleared on learning reset** — `clearLearningLogs()` now clears `#noiseStats` so early feature-importance recalibration isn't skewed by old deltas.
+- **Empty catch blocks instrumented** — `BrightnessManager._pollSystemState`, manual-change confirmation, and `weather.findLocation` now log failures instead of silently swallowing them.
+- **Temp file cleanup warnings** — `webcam.captureRawFrame` and `captureWithCandidate` log on unlink failure (disk full, permissions) instead of silently orphaning files.
+- **ffmpeg raw-format probe logs stderr** on failure so missing-binary errors surface to the caller.
+- **Clipboard fallback removed** — `renderer.copyWallet` uses `navigator.clipboard.writeText` only; deprecated `document.execCommand('copy')` path removed.
+- **Duplicate `dotenv` load removed** — `index.js` is now the sole loader; `app/app.js` no longer loads `.env` again.
+
+### Changed
+- **All dependency `^` ranges updated** and `package-lock.json` synced.
+
 ## [1.5.5] - 2026-09-16
 
 ### Fixed

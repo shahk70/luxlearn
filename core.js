@@ -159,10 +159,11 @@ const loadJSON = async (filePath, defaultValue) => {
   }
 };
 
-const saveJSON = async (filePath, data) => {
+const saveJSON = async (filePath, data, { compact = false } = {}) => {
   try {
     const tempPath = `${filePath}.tmp`;
-    await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
+    const text = compact ? JSON.stringify(data) : JSON.stringify(data, null, 2);
+    await fs.writeFile(tempPath, text, 'utf8');
     await fs.rename(tempPath, filePath);
   } catch (err) {
     console.error(`Error saving JSON to ${filePath}:`, err.message);
@@ -187,12 +188,13 @@ async function retry(fn, retries = 3, initialDelay = 300) {
 }
 
 
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const util = require('util');
 const os = require('os');
 
 const PLATFORM = os.platform();
 const execAsync = util.promisify(exec);
+const execFileAsync = util.promisify(execFile);
 
 const DEFAULT_PS_TIMEOUT_MS = 5000;
 const PS_EXE = process.platform === 'win32'
@@ -225,8 +227,11 @@ function execPowerShell(command, timeoutMs = DEFAULT_PS_TIMEOUT_MS) {
 
 async function commandExists(cmd) {
   try {
-    if (PLATFORM === 'win32') await execAsync(`where ${cmd}`);
-    else await execAsync(`command -v ${cmd}`);
+    if (PLATFORM === 'win32') {
+      await execFileAsync('where', [cmd]);
+    } else {
+      await execFileAsync('command', ['-v', cmd]);
+    }
     return true;
   } catch {
     return false;

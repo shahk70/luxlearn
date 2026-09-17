@@ -7,21 +7,39 @@ issue — use GitHub's "Report a vulnerability" button under this repo's
 Security tab, or email the maintainer directly. Include reproduction steps
 and, if relevant, which OS/Electron version you tested on.
 
-## Known-fixed issue: leaked WeatherAPI key
+## WeatherAPI keys
 
-An earlier internal copy of this project had a live-looking WeatherAPI.com
-key hardcoded as a fallback default in `weather.js`, and a `.env` file with
-several more keys under a misspelled/mismatched variable name
-(`WHEATHER_API_KEYS` instead of `WEATHERAPI_KEY`) that was never actually
-loaded into `process.env` (no `dotenv` call existed). Both problems are
-fixed in this repo:
+`weather.js` bundles a small pool of free-tier WeatherAPI keys
+(`BUNDLED_PUBLIC_KEYS`) so the app works out of the box without any
+configuration. They are low-privilege, quota-limited keys — no billing is
+exposed. The app rotates through the pool and falls back to Open-Meteo
+(keyless) and cached suncalc if the quota is exhausted, so losing a key
+doesn't break the feature.
 
-- `weather.js` no longer has any hardcoded key — it reads
-  `process.env.WEATHERAPI_KEY` only, and falls back to cached/default
-  sunrise-sunset data if it's unset.
-- `app/app.js` (the entry point) now calls `require('dotenv').config()` so a local `.env` is
-  actually loaded.
-- `.env` is git-ignored; `.env.example` documents the one variable it needs.
+Priority order for keys: `WEATHERAPI_PRIVATE_KEYS` (`.env`) → single
+`WEATHERAPI_KEY` (`.env`) → bundled public pool → keyless fallbacks. If you
+need higher quota or private access, set your own key(s) in a local `.env`
+file (see `.env.example`) — private keys are never committed (`.env` is
+git-ignored). Open-Meteo and the cached/default sunrise-sunset calculation
+run without any key at all.
+
+> ⚠️  The bundled pool lives inside the packaged `app.asar`. Anyone who
+> inspects that archive can read these keys and share them — do not store
+> paid/billing-enabled keys in the bundled pool. Rotate or replace any key
+> you consider sensitive at weatherapi.com.
+
+## Known-fixed issue: leaked WeatherAPI key (historical)
+
+An earlier internal copy of this project stored several live keys under a
+misspelled variable (`WHEATHER_API_KEYS` instead of `WEATHERAPI_KEY`) that
+was never actually loaded into `process.env` (no `dotenv` call existed),
+and `weather.js` had a single hardcoded default. Both problems are fixed in
+this repo:
+
+- Key loading is documented in the section above.
+- The entry point (`index.js`) and `app/app.js` both call
+  `require('dotenv').config()` so a local `.env` is actually loaded.
+- `.env` is git-ignored; `.env.example` documents the variables.
 
 **If you have a clone of this project (or its git history) that still
 contains real keys in `.env` or in `weather.js`, treat those keys as

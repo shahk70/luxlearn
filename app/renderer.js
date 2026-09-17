@@ -664,19 +664,8 @@ window.addEventListener('DOMContentLoaded', () => {
             await navigator.clipboard.writeText(address);
             showToast(t('toast.addressCopied'));
         } catch (err) {
-            try {
-                const textarea = document.createElement('textarea');
-                textarea.value = address;
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-                showToast(t('toast.addressCopied'));
-            } catch (fallbackErr) {
-                showToast(t('toast.copyFailed'));
-            }
+            console.warn('Clipboard API failed:', err);
+            showToast(t('toast.copyFailed'));
         }
     }
 
@@ -1386,29 +1375,48 @@ window.addEventListener('DOMContentLoaded', () => {
     const startActivityPoll = () => {
         if (activityPollTimer) return;
         const tick = async () => {
-            const res = await window.api.checkActivityWindow?.();
-            if (!res) return;
-            if (res.label !== lastActivityLabel) {
-                lastActivityLabel = res.label;
-                requestUIUpdate(() => {
-                    const statusPage = document.getElementById('page-status');
-                    if (!statusPage) return;
-                    if (res.label) {
-                        if (!activityPauseRow) {
-                            activityPauseRow = document.createElement('div');
-                            activityPauseRow.className = 'pause-row activity-paused-row';
-                            const statusCard = statusPage.querySelector('.status-card .card-body');
-                            statusCard?.appendChild(activityPauseRow);
+            // Skip polling when the page is not visible (browser/tab hidden or
+            // Electron window occluded) and use a bounded retry cycle on
+            // errors so we don't hammer the main process.
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+            try {
+                const res = await window.api.checkActivityWindow?.();
+                if (!res) return;
+                if (res.label !== lastActivityLabel) {
+                    lastActivityLabel = res.label;
+                    requestUIUpdate(() => {
+                        const statusPage = document.getElementById('page-status');
+                        if (!statusPage) return;
+                        if (res.label) {
+                            if (!activityPauseRow) {
+                                activityPauseRow = document.createElement('div');
+                                activityPauseRow.className = 'pause-row activity-paused-row';
+                                const statusCard = statusPage.querySelector('.status-card .card-body');
+                                statusCard?.appendChild(activityPauseRow);
+                            }
+                            activityPauseRow.textContent = t('activities.pausedBy', { activity: res.label });
+                            activityPauseRow.hidden = false;
+                        } else if (activityPauseRow) {
+                            activityPauseRow.hidden = true;
                         }
-                        activityPauseRow.textContent = t('activities.pausedBy', { activity: res.label });
-                        activityPauseRow.hidden = false;
-                    } else if (activityPauseRow) {
-                        activityPauseRow.hidden = true;
-                    }
-                });
+                    });
+                }
+            } catch (err) {
+                console.warn('[renderer] Activity poll failed:', err?.message || err);
             }
         };
-        tick();
+        const initial = tick();
+        // Bounded retry for the first burst so a transient main-process error
+        // doesn't enter a 10-second noise loop.
+        let retryCount = 0;
+        const scheduleRetry = () => {
+            if (retryCount >= 3 || activityPollTimer) return;
+            retryCount++;
+            setTimeout(() => {
+                initial.catch(() => scheduleRetry());
+            }, 500);
+        };
+        initial.catch(() => scheduleRetry());
         activityPollTimer = setInterval(tick, 10000);
     };
 
