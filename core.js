@@ -206,19 +206,25 @@ function execPowerShell(command, timeoutMs = DEFAULT_PS_TIMEOUT_MS) {
     const controller = new AbortController();
     let settled = false;
 
-    const timeout = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      controller.abort();
-      reject(new Error('PS Timeout'));
-    }, timeoutMs);
+    // GPS calls pass an explicit null to skip the artificial timeout entirely —
+    // the PowerShell loop self-terminates (12s Ready check) and either returns
+    // coordinates or throws, so it never runs indefinitely.
+    let timeout = null;
+    if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        controller.abort();
+        reject(new Error('PS Timeout'));
+      }, timeoutMs);
+    }
 
     const encoded = Buffer.from(command, 'utf16le').toString('base64');
     const { execFile } = require('child_process');
     execFile(PS_EXE, ['-NoProfile', '-EncodedCommand', encoded], { signal: controller.signal, windowsHide: true }, (err, stdout) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
       if (err) return reject(err);
       resolve(stdout.trim());
     });

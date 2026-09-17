@@ -10,7 +10,6 @@ const CONFIG = {
     DEFAULT_LOCATION: { latitude: 0, longitude: 0 },
     LOCATION_CACHE_TTL_MS: 6 * 60 * 60 * 1000,
     MAX_LOCATION_DRIFT_KM: 50,
-    POWERSHELL_TIMEOUT_MS: 20000,
     API_TIMEOUT_MS: 8000,
     IP_GEOLOCATION_TIMEOUT_MS: 5000,
     DAILY_WEATHER_TTL_MS: 3600000, // 1 hour
@@ -47,10 +46,12 @@ function isPrivateKey(key) {
 
 let memCache = {
     location: null,
-    timestamp: 0
+    timestamp: 0,
+    source: null
 };
 
 let lastAcceptedLocation = null;
+let lastAcceptedSource = null; // 'gps' | 'ip'
 
 const PS_COMMAND = `
 $ErrorActionPreference='Stop';
@@ -78,12 +79,16 @@ function haversineDistanceKm(a, b) {
     return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-function isPlausibleDrift(candidate) {
+function isPlausibleDrift(candidate, candidateSource) {
     if (!lastAcceptedLocation) return true;
+    // GPS is authoritative over an IP baseline — the IP city can be hundreds
+    // of km away when using a VPN or carrier-level NAT, so a GPS fix that
+    // disagrees with a stale IP location is perfectly normal.
+    if (candidateSource === 'gps' && lastAcceptedSource === 'ip') return true;
     const distanceKm = haversineDistanceKm(lastAcceptedLocation, candidate);
     if (distanceKm > CONFIG.MAX_LOCATION_DRIFT_KM) {
         console.warn(
-            `Rejected GPS reading ${distanceKm.toFixed(1)}km from last known location ` +
+            `Rejected ${candidateSource} reading ${distanceKm.toFixed(1)}km from last known location ` +
             `(threshold ${CONFIG.MAX_LOCATION_DRIFT_KM}km); keeping previous location.`
         );
         return false;
@@ -122,12 +127,16 @@ async function findLocation(forceRefresh = false) {
     }
 
     let loc = null;
+    let source = null;
 
     if (PLATFORM === 'win32') {
         try {
-            const output = await execPowerShell(PS_COMMAND, CONFIG.POWERSHELL_TIMEOUT_MS);
+            const output = await execPowerShell(PS_COMMAND, null);
             const data = JSON.parse(output);
-            if (data && data.lat && data.lon) loc = { latitude: data.lat, longitude: data.lon };
+            if (data && data.lat && data.lon) {
+                loc = { latitude: data.lat, longitude: data.lon };
+                source = 'gps';
+            }
         } catch (error) {
             console.warn('[weather] PowerShell geolocation lookup failed:', error?.message || error);
         }
@@ -136,31 +145,38 @@ async function findLocation(forceRefresh = false) {
     if (!loc) {
         try {
             loc = await ipGeolocation();
+            // Only claim IP if a fix was actually produced — GPS staying null
+            // is the "we already know loc is ip-derived" signal.
+            if (loc && isValidCoord(loc)) source = 'ip';
         } catch (error) {
             console.warn('[weather] IP geolocation lookup failed:', error?.message || error);
         }
     }
 
     if (!loc || !isValidCoord(loc)) {
-        if (forceRefresh) memCache = { location: null, timestamp: 0 };
+        if (forceRefresh) memCache = { location: null, timestamp: 0, source: null };
         return lastAcceptedLocation || CONFIG.DEFAULT_LOCATION;
     }
 
-    if (!isPlausibleDrift(loc)) {
+    if (!isPlausibleDrift(loc, source)) {
         const fallback = lastAcceptedLocation || CONFIG.DEFAULT_LOCATION;
-        lastAcceptedLocation = loc;
-        memCache = { location: fallback, timestamp: now };
+        // Keep the original accepted source on the cache — do NOT record the
+        // rejected fix as our new baseline (fixes state-corruption of drift guard).
+        memCache = { location: fallback, timestamp: now, source: lastAcceptedSource || memCache.source };
         return fallback;
     }
 
     lastAcceptedLocation = loc;
-    memCache = { location: loc, timestamp: now };
+    lastAcceptedSource = source;
+    memCache = { location: loc, timestamp: now, source };
+    loc._locationSource = source; // stash for the caller so it can show provenance
     return loc;
 }
 
 function resetLocationCache() {
-    memCache = { location: null, timestamp: 0 };
+    memCache = { location: null, timestamp: 0, source: null };
     lastAcceptedLocation = null;
+    lastAcceptedSource = null;
 }
 
 async function refreshLocationNow() {
@@ -245,7 +261,8 @@ async function fetchFromApi() {
         throw new Error('WEATHERAPI_KEYS is not configured; skipping live weather lookup.');
     }
 
-    const { latitude, longitude } = await findLocation();
+    const loc = await findLocation();
+    const { latitude, longitude } = loc;
     const query = `${latitude},${longitude}`;
 
     let lastError = null;
@@ -307,6 +324,7 @@ async function fetchFromApi() {
             longitude,
             tz_id: timeZone,
             lastUpdated: new Date().toISOString(),
+            locationSource: loc._locationSource || memCache.source || null,
         };
     }
 
@@ -369,17 +387,23 @@ async function updateDailyWeatherInfo(userSettings = {}) {
     // Try sources in order: WeatherAPI (with keys), Open-Meteo (free, no key), cached suncalc, defaults
     let result = null;
     let source = 'unknown';
+    let locRef = null;
 
     try {
         result = await retry(fetchFromApi, 2, 500);
         source = 'weatherapi';
+        // findLocation ran inside fetchFromApi — its coordinates were cached,
+        // so we can't pull locRef._locationSource directly; fall back to the
+        // cache source (gps / ip) recorded by findLocation itself.
+        locRef = { _locationSource: memCache.source || lastAcceptedSource || null };
     } catch (e) {
         console.debug('WeatherAPI failed:', e.message);
     }
 
     if (!result) {
         try {
-            const { latitude, longitude } = await findLocation();
+            locRef = await findLocation();
+            const { latitude, longitude } = locRef;
             if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
                 const om = await fetchFromOpenMeteo(latitude, longitude);
                 const cloud = om?.current?.cloud_cover ?? 0;
@@ -393,6 +417,7 @@ async function updateDailyWeatherInfo(userSettings = {}) {
                     longitude,
                     tz_id: om?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
                     lastUpdated: new Date().toISOString(),
+                    locationSource: locRef._locationSource || memCache.source || null,
                 };
                 source = 'open-meteo';
             }
@@ -416,6 +441,10 @@ async function updateDailyWeatherInfo(userSettings = {}) {
     }
 
     result._source = source;
+    // Pull the per-call location source (gps / ip) from whichever findLocation
+    // call produced the coordinates used.  If the path never called findLocation
+    // (cached-suncalc / default fallback) the field simply stays undefined.
+    if (locRef && locRef._locationSource) result.locationSource = locRef._locationSource;
     return result;
 }
 

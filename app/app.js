@@ -284,12 +284,13 @@ async function refreshWeatherData(isInitialLoad = false) {
 }
 
 function sendWeatherUpdateToUI() {
-    const { city, sunrise, sunset, lastUpdated } = state.weather || {};
+    const { city, sunrise, sunset, lastUpdated, locationSource } = state.weather || {};
     sendToMainWindow('weather-update', {
         city: city || 'Unknown',
         sunrise: formatTime(sunrise),
         sunset: formatTime(sunset),
-        lastUpdated: lastUpdated || 'Unknown'
+        lastUpdated: lastUpdated || 'Unknown',
+        locationSource: locationSource || null,
     });
 }
 

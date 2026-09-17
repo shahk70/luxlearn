@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.5.7] - 2026-09-17
+
+### Fixed
+- **Weather location now uses GPS instead of IP when the GPS sensor is available.**
+  The drift guard (`isPlausibleDrift`) was comparing the GPS fix against an
+  IP-derived baseline set during startup when the GPS hadn't locked yet. A
+  12-second PowerShell timeout killed the process before the GPS sensor could
+  report, so the IP fallback always won. The subsequent GPS fix was then
+  rejected by the drift guard (IP baseline was hundreds of km from the true
+  position). This is fixed by:
+  - Removing the artificial PowerShell timeout on the GPS call — PowerShell's
+    own `GeoCoordinateWatcher` loop naturally terminates (12s max) and
+    returns a result or throws, so an external timeout only causes premature
+    cancellation. (`core.js:204`, `weather.js:134`)
+  - Making GPS authoritative over an IP baseline: a real sensor fix always
+    replaces the IP city guess. GPS-to-GPS drift checks are preserved for
+    genuine glitch protection. (`weather.js:82-92`)
+  - Fixing a state-corruption bug where the drift rejection path
+    `lastAcceptedLocation = loc` overwrote the accepted baseline with the
+    rejected candidate, causing inconsistent state on subsequent calls.
+    (`weather.js:163-167`)
+- **Location source badge (`GPS` / `IP`) now visible next to the city name.**
+  A small pill badge shows whether the current location came from the GPS
+  sensor or from IP geolocation. The source is included in the persisted
+  `dailyWeather.json` so it survives app restarts.
+  (`app/index.html:271`, `app/renderer.js:206-219`, `app/style.scss:1223-1239`)
+
+### Changed
+- `weather.js`: Removed dead `POWERSHELL_TIMEOUT_MS` config constant (no
+  longer used after GPS timeout was removed).
+
 ## [1.5.6] - 2026-09-17
 
 ### Security & Hardening

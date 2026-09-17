@@ -111,7 +111,7 @@ window.addEventListener('DOMContentLoaded', () => {
             refreshLocationBtn: $('refreshLocationBtn'),
         },
 
-        location: { city: $('cityName'), sunrise: $('lightTime'), sunset: $('darkTime'), nextUpdate: $('nextUpdate') },
+        location: { city: $('cityName'), sunrise: $('lightTime'), sunset: $('darkTime'), nextUpdate: $('nextUpdate'), cityBadge: $('cityBadge') },
         profile: { username: $('profile-username'), method: $('profile-method'), progress: $('profile-learning-progress'), interval: $('profile-auto-interval') },
         status: { brightness: $('status-brightness'), phase: $('status-learning-phase'), logs: $('status-logs-recorded'), auto: $('status-auto-brightness'), next: $('status-next-adjustment'), als: $('status-als'), confidence: $('status-confidence'), power: $('status-power'), nightLight: $('status-nightlight'), lightMode: $('status-lightmode'), lightModeLabel: $('status-lightmode-label') },
         activitiesList: $('activitiesList'),
@@ -202,6 +202,22 @@ window.addEventListener('DOMContentLoaded', () => {
             setText(elems.location.city, data.city || 'N/A');
             setText(elems.location.sunrise, data.sunrise || 'N/A');
             setText(elems.location.sunset, data.sunset || 'N/A');
+
+            // Show a small provenance badge next to the city name so users can
+            // verify GPS coordinates are being used, not just IP geolocation.
+            if (elems.location.cityBadge) {
+                const src = data.locationSource;
+                if (src === 'gps') {
+                    elems.location.cityBadge.textContent = 'GPS';
+                    elems.location.cityBadge.title = 'Location from GPS sensor';
+                } else if (src === 'ip') {
+                    elems.location.cityBadge.textContent = 'IP';
+                    elems.location.cityBadge.title = 'Location from IP geolocation (GPS unavailable)';
+                } else {
+                    elems.location.cityBadge.textContent = '';
+                    elems.location.cityBadge.title = '';
+                }
+            }
 
             if (data.lastUpdated) {
                 const next = new Date(new Date(data.lastUpdated).getTime() + THREE_HOURS_IN_MS);
