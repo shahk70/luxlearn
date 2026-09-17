@@ -1,6 +1,38 @@
 # Changelog
 
-## [1.5.7] - 2026-09-17
+## [1.5.8] - 2026-09-17
+
+### Fixed
+- **VPN IP no longer hijacks a working GPS location for hours.**
+  `findLocation` treated every cached location source equally, trusting the
+  entry for the full 6-hour TTL regardless of whether it came from the GPS
+  sensor or IP geolocation. When the GPS sensor wasn't ready at cold start,
+  the IP fallback (which resolves to the VPN exit city) was cached and locked
+  out GPS re-validation for up to 6 hours — causing every hourly weather
+  refresh to record wrong sunrise/sunset and cloud data. IP-derived fixes are
+  now subject to a shorter 2-hour reuse window, and the GPS sensor is
+  probed on every weather cycle (rate-limited to once per 45 minutes on
+  machines without a sensor) until it produces a fix, which is then accepted
+  immediately. The in-memory GPS fix is also preferred over persisted (possibly
+  IP-derived) coordinates when computing the cached-suncalc weather fallback.
+  (`weather.js:11-13`, `weather.js:124-184`, `weather.js:366-392`)
+- **GPS sensor probe timeout increased from 12 s to 20 s.**
+  Some devices need longer than the previous 12-second window for the
+  Windows `GeoCoordinateWatcher` to reach Ready status and report a fix.
+  (`weather.js:64`)
+- **GPS probe now logs success and failure.**
+  `console.debug` records the acquired coordinates and watcher status;
+  `console.warn` fires when the probe returns empty or invalid, so users
+  can confirm whether the sensor is producing fixes at all.
+  (`weather.js:163-166`)
+- **"Refresh location" always forces a fresh GPS probe.**
+  The cooldown gate was reworked so `forceRefresh` bypasses it entirely,
+  ensuring the Settings button always triggers a sensor read.
+
+### Changed
+- `weather.js` — added `IP_LOCATION_CACHE_TTL_MS` (2 h) and
+  `GPS_PROBE_COOLDOWN_MS` (45 min) constants governing IP reuse and GPS
+  re-probe cadence respectively.
 
 ### Fixed
 - **Weather location now uses GPS instead of IP when the GPS sensor is available.**

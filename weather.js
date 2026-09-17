@@ -8,7 +8,8 @@ const CONFIG = {
     OPEN_METEO_URL: 'https://api.open-meteo.com/v1/forecast',
     IP_GEOLOCATION_URL: 'https://ip-api.com/json/?fields=status,lat,lon,city,countryCode,query',
     DEFAULT_LOCATION: { latitude: 0, longitude: 0 },
-    LOCATION_CACHE_TTL_MS: 6 * 60 * 60 * 1000,
+    LOCATION_CACHE_TTL_MS: 6 * 60 * 60 * 1000,      // GPS fix – authoritative for 6 h
+    IP_LOCATION_CACHE_TTL_MS: 2 * 60 * 60 * 1000,   // IP fix – re-validate against GPS frequently
     MAX_LOCATION_DRIFT_KM: 50,
     API_TIMEOUT_MS: 8000,
     IP_GEOLOCATION_TIMEOUT_MS: 5000,
@@ -60,9 +61,9 @@ try{
  $w=New-Object System.Device.Location.GeoCoordinateWatcher;
  $w.Start();
  $s=Get-Date;
- while($w.Status -ne 'Ready' -and (Get-Date) -lt $s.AddSeconds(12)){Start-Sleep -m 300}
+ while($w.Status -ne 'Ready' -and (Get-Date) -lt $s.AddSeconds(20)){Start-Sleep -m 300}
  if($w.Position.Location.IsUnknown){throw}
- @{lat=$w.Position.Location.Latitude;lon=$w.Position.Location.Longitude}|ConvertTo-Json -Compress
+ @{lat=$w.Position.Location.Latitude;lon=$w.Position.Location.Longitude;status=$w.Status.ToString()}|ConvertTo-Json -Compress
 }catch{Write-Output "{}"}
 `.replace(/[\r\n]+/g, ' ');
 
@@ -120,26 +121,58 @@ function isValidCoord(loc) {
         && (Math.abs(loc.latitude) > 0.01 || Math.abs(loc.longitude) > 0.01);
 }
 
+let lastGpsProbeTime = 0;
+// GPS probes can block for up to 12 s (the in-script watcher timeout) on
+// machines without a sensor, so rate-limit them. The cooldown is kept just
+// under the hourly weather refresh, so every hourly cycle re-validates an
+// IP-derived location against the sensor (instantly fixing VPN cases) while
+// GPS-less machines only pay the probe cost once per cycle.
+const GPS_PROBE_COOLDOWN_MS = 45 * 60 * 1000;
+
 async function findLocation(forceRefresh = false) {
     const now = Date.now();
-    if (!forceRefresh && memCache.location && (now - memCache.timestamp < CONFIG.LOCATION_CACHE_TTL_MS)) {
+    const cacheFresh = !forceRefresh && memCache.location
+        && (now - memCache.timestamp < CONFIG.LOCATION_CACHE_TTL_MS);
+
+    // A cached GPS fix is authoritative — return it immediately.
+    if (cacheFresh && memCache.source === 'gps') {
+        return memCache.location;
+    }
+
+    // Non-Windows has no GPS sensor: the IP cache stands as-is.
+    if (cacheFresh && PLATFORM !== 'win32') {
         return memCache.location;
     }
 
     let loc = null;
     let source = null;
 
-    if (PLATFORM === 'win32') {
+    // On Windows, always probe the GPS sensor unless we already have a fresh
+    // GPS fix (handled above). An IP-derived cache entry — which can be
+    // hundreds of km off when the user is on a VPN or carrier NAT — must
+    // never blind the sensor. Probing is rate-limited so GPS-less machines
+    // aren't stalled for 12 s on every call.
+    if (PLATFORM === 'win32' && (forceRefresh || now - lastGpsProbeTime >= GPS_PROBE_COOLDOWN_MS)) {
+        lastGpsProbeTime = now;
         try {
             const output = await execPowerShell(PS_COMMAND, null);
             const data = JSON.parse(output);
             if (data && data.lat && data.lon) {
                 loc = { latitude: data.lat, longitude: data.lon };
                 source = 'gps';
+                console.debug('[weather] GPS fix acquired', { lat: data.lat, lon: data.lon, status: data.status });
+            } else {
+                console.warn('[weather] GPS probe returned no fix (empty or invalid)', { raw: output });
             }
         } catch (error) {
             console.warn('[weather] PowerShell geolocation lookup failed:', error?.message || error);
         }
+    }
+
+    // The sensor yielded nothing but the IP cache is still within its shorter
+    // TTL — reuse it instead of re-hitting the IP geolocation service.
+    if (!loc && cacheFresh && (now - memCache.timestamp < CONFIG.IP_LOCATION_CACHE_TTL_MS)) {
+        return memCache.location;
     }
 
     if (!loc) {
@@ -334,15 +367,27 @@ async function fetchFromApi() {
 
 async function calculateFromCache() {
     const saved = await loadJSON(WEATHER_JSON_PATH, null);
-    if (!Number.isFinite(saved?.latitude) || !Number.isFinite(saved?.longitude)) throw new Error("No Cache");
+    if (!saved || typeof saved !== 'object') throw new Error("No Cache");
 
-    const times = SunCalc.getTimes(new Date(), saved.latitude, saved.longitude);
+    // The persisted file may carry IP-derived (VPN) coordinates from a run
+    // where GPS hadn't locked yet. Prefer the freshest in-memory GPS fix so
+    // sunrise/sunset and the recorded lat/lon track the sensor even when the
+    // live weather APIs are unreachable — no extra probes on a failing network.
+    const useGPS = lastAcceptedSource === 'gps' && isValidCoord(lastAcceptedLocation);
+    const latitude  = useGPS ? lastAcceptedLocation.latitude : (Number.isFinite(saved.latitude)  ? saved.latitude  : 0);
+    const longitude = useGPS ? lastAcceptedLocation.longitude : (Number.isFinite(saved.longitude) ? saved.longitude : 0);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error("No Cache");
+
+    const times = SunCalc.getTimes(new Date(), latitude, longitude);
 
     return {
         ...saved,
         sunrise: times.sunrise.toISOString(),
         sunset: times.sunset.toISOString(),
-        lastUpdated: saved.lastUpdated
+        lastUpdated: saved.lastUpdated,
+        latitude,
+        longitude,
+        ...(useGPS ? { locationSource: 'gps' } : {}),
     };
 }
 
