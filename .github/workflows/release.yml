@@ -70,9 +70,31 @@ jobs:
     needs: package
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+
+      - name: Extract changelog for release body
+        id: changelog
+        shell: bash
+        run: |
+          # Pull the section for the current tag (## [x.y.z]) out of
+          # CHANGELOG.md; everything up to the next top-level ## entry.
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag=${TAG}"
+          START=$(grep -n "^## \[${TAG#v}\]" CHANGELOG.md | head -1 | cut -d: -f1)
+          if [ -z "${START}" ]; then
+            echo "No changelog section for ${TAG}, using auto-generated notes"
+            exit 0
+          fi
+          END=$(awk -v start="$((START+1))" 'NR > start && /^## / { print NR; exit }' CHANGELOG.md)
+          if [ -z "${END}" ]; then END=$(wc -l < CHANGELOG.md); fi
+          BODY=$(sed -n "${START},$((END-1))p" CHANGELOG.md)
+          # Body goes to a file (release notes can exceed the 1024-char env limit).
+          printf '%s\n' "${BODY}" > /tmp/RELEASE_BODY.md
+          echo "body=$(wc -c < /tmp/RELEASE_BODY.md) bytes"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -85,4 +107,5 @@ jobs:
             artifacts/**/*.deb
             artifacts/**/*.blockmap
             artifacts/**/latest*.yml
+          body_path: /tmp/RELEASE_BODY.md
           generate_release_notes: true
