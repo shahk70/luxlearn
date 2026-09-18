@@ -1261,6 +1261,15 @@ const I18N = {
     "ru": "История",
     "zh": "历史记录"
   },
+  "settings.sectionMonitoring": {
+    "en": "Monitoring",
+    "de": "Überwachung",
+    "tr": "İzleme",
+    "es": "Monitoreo",
+    "fr": "Suivi",
+    "ru": "Мониторинг",
+    "zh": "监控"
+  },
   "update.available": {
     "en": "A new version is available.",
     "de": "Eine neue Version ist verfügbar.",

@@ -442,12 +442,15 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     const LOG_VERBOSITY = { debug: 0, info: 1, success: 2, warn: 3, error: 4 };
+    // Thresholds: each filter level includes that level and everything above it.
+    // normal (default) hides only debug-level noise; info shows info onward;
+    // debug shows everything including future debug-only diagnostics.
     function shouldShowLogLevel(logLevel, filter) {
         if (filter === 'off') return false;
         const verbosity = LOG_VERBOSITY[logLevel];
         if (typeof verbosity !== 'number') return filter !== 'off';
-        const threshold = { debug: 0, info: 1, normal: 2 }[filter];
-        return typeof threshold === 'number' && verbosity >= threshold;
+        const threshold = { debug: 0, info: 1, normal: 1 }[filter] ?? 1;
+        return verbosity >= threshold;
     }
 
     function reapplyLogFilter() {

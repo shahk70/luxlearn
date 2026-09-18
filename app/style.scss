@@ -1146,7 +1146,7 @@ select {
   grid-template-columns: 1fr;
   gap: var(--space-5) var(--space-6);
 
-  @media (min-width: 768px) {
+  @media (min-width: 520px) {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -1174,12 +1174,12 @@ select {
     padding-bottom: 0;
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: 520px) {
     grid-template-columns: 1fr 1fr;
   }
 
   .settings-group-full {
-    @media (min-width: 768px) {
+    @media (min-width: 520px) {
       grid-column: 1 / -1;
     }
   }

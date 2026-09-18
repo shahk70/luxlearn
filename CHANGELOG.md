@@ -3,10 +3,21 @@
 ## [1.5.9] - 2026-09-18
 
 ### Fixed
-- **Settings layout: number inputs no longer stretch to fill grid cells.**
-  Added a max-width constraint (`12rem`) to number inputs inside the advanced
-  settings grid, so steppers stay compact on desktop instead of expanding
-  awkwardly. (`style.scss:1155-1162`)
+- **Log list no longer empty on startup.**
+  The default `normal` log filter hidden all `info`-level messages (verbosity
+  `1`), but virtually every startup message — "Initializing Brightness
+  Manager…", "Core loops started…", "Settings updated" — is emitted at `info`
+  level. The filter threshold has been lowered from `2` to `1`, so `normal`
+  mode now shows info, success, warn, and error. Only `debug`-level noise
+  (reserved for future diagnostics) is still hidden. (`renderer.js:444-453`)
+- **Settings advanced grid: all form groups are now properly paired.**
+  The "Learning" and "How often it checks" sections each contained a single
+  setting, leaving awkward blank columns on wider viewports. The groups have
+  been reorganised into balanced 2-item pairs (Learning, History, Monitoring,
+  Adjustment rules), and the media-query breakpoint was lowered from `768px`
+  to `520px` — below the app's `720px` minimum window width — so the 2-column
+  grid is always visible at any usable window size. (`index.html`,
+  `style.scss:1113-1127, 1156-1169`)
 
 ### Added
 - **Log Detail Level setting (Debug / Info / Normal / Off).**
