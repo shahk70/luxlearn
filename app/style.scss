@@ -651,6 +651,37 @@ p {
 /* ----------------------------------- */
 /* 8. Chart, weights, warnings
 /* ----------------------------------- */
+.log-level-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-4);
+
+  label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--color-fg-muted);
+    white-space: nowrap;
+  }
+
+  select {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.log-empty {
+  font-size: 0.85rem;
+  color: var(--color-fg-muted);
+  padding: var(--space-3) 0;
+  text-align: center;
+}
+
 .history-header {
   display: flex;
   flex-direction: row;
@@ -1150,6 +1181,19 @@ select {
   .settings-group-full {
     @media (min-width: 768px) {
       grid-column: 1 / -1;
+    }
+  }
+
+  .form-group-redesigned {
+    min-width: 0;
+
+    .number-input-wrapper {
+      max-width: 12rem;
+      width: 100%;
+    }
+
+    .form-description {
+      padding-left: 0;
     }
   }
 }

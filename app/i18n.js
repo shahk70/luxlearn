@@ -881,6 +881,16 @@ const I18N = {
     "ru": "Камера",
     "zh": "摄像头"
   },
+  "common.logLevel": {
+    "en": "Log level",
+    "de": "Protokollstufe",
+    "fa": "سطح لاگ",
+    "tr": "Günlük seviyesi",
+    "es": "Nivel de registro",
+    "fr": "Niveau des journaux",
+    "ru": "Уровень журнала",
+    "zh": "日志级别"
+  },
   "common.display": {
     "en": "Display",
     "de": "Anzeige",
@@ -1490,6 +1500,66 @@ const I18N = {
     "fr": "Nombre maximal d’entrées. Plus = plus précis.",
     "ru": "Максимум записей. Больше — точнее.",
     "zh": "存储日志的最大数量。越多越准确。"
+  },
+  "settings.logLevelLabel": {
+    "en": "Log Detail Level",
+    "de": "Protokolldetailstufe",
+    "fa": "سطح جزئیات لاگ",
+    "tr": "Günlük Detay Seviyesi",
+    "es": "Nivel de detalle",
+    "fr": "Niveau de détail",
+    "ru": "Уровень детализации",
+    "zh": "日志详细程度"
+  },
+  "settings.logLevelDesc": {
+    "en": "Controls which events appear on the Status page. More detail helps with troubleshooting; less detail keeps the list clean.",
+    "de": "Steuert, welche Ereignisse auf der Statusseite erscheinen. Mehr Details helfen bei der Fehlersuche; weniger halten die Liste übersichtlich.",
+    "fa": "مشخص می‌کند کدام رویدادها در صفحه وضعیت نمایش داده شوند.",
+    "tr": "Durum sayfasında hangi olayların görüneceğini belirler.",
+    "es": "Controla qué eventos aparecen en la página de estado.",
+    "fr": "Contrôle les événements affichés sur la page d’état.",
+    "ru": "Какие события показывать на вкладке «Статус».",
+    "zh": "控制状态页上显示哪些事件。"
+  },
+  "settings.logLevelDebug": {
+    "en": "Debug",
+    "de": "Debug",
+    "fa": "اشکال‌زدایی",
+    "tr": "Hata ayıklama",
+    "es": "Depurar",
+    "fr": "Débogage",
+    "ru": "Отладка",
+    "zh": "调试"
+  },
+  "settings.logLevelInfo": {
+    "en": "Info",
+    "de": "Info",
+    "fa": "اطلاعات",
+    "tr": "Bilgi",
+    "es": "Info",
+    "fr": "Infos",
+    "ru": "Инфо",
+    "zh": "信息"
+  },
+  "settings.logLevelNormal": {
+    "en": "Normal",
+    "de": "Normal",
+    "fa": "عادی",
+    "tr": "Normal",
+    "es": "Normal",
+    "fr": "Normal",
+    "ru": "Обычный",
+    "zh": "普通"
+  },
+  "settings.logLevelOff": {
+    "en": "Off",
+    "de": "Aus",
+    "fa": "خاموش",
+    "tr": "Kapalı",
+    "es": "Apagado",
+    "fr": "Désactivé",
+    "ru": "Выкл",
+    "zh": "关闭"
   },
   "settings.autoIntervalLabel": {
     "en": "LuxLearn Interval (minutes)",

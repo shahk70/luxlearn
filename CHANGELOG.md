@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.5.9] - 2026-09-18
+
+### Fixed
+- **Settings layout: number inputs no longer stretch to fill grid cells.**
+  Added a max-width constraint (`12rem`) to number inputs inside the advanced
+  settings grid, so steppers stay compact on desktop instead of expanding
+  awkwardly. (`style.scss:1155-1162`)
+
+### Added
+- **Log Detail Level setting (Debug / Info / Normal / Off).**
+  New `logLevel` option in **Settings → History** controls which events
+  appear on the Status page's "Recent Changes" list:
+  - `debug` – everything (future-proof)
+  - `info` – info, success, warn, error
+  - `normal` – success, warn, error (default)
+  - `off` – nothing shown
+  The same dropdown is mirrored on the **Status** page so users can toggle
+  verbosity while viewing the log; changes apply instantly without waiting
+  for new events. (`core.js:48, 81`, `renderer.js:175-210`, `index.html:297-312, 771-779`, `style.scss:1178-1200`)
+- **Full i18n coverage for log level UI.**
+  All 8 locales (en, de, fa, tr, es, fr, ru, zh) include translations for
+  the label, description, and each option. (`i18n.js:1494-1553`, `i18n.js:894-902`)
+
 ## [1.5.8] - 2026-09-17
 
 ### Fixed

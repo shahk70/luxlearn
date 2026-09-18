@@ -111,6 +111,8 @@ window.addEventListener('DOMContentLoaded', () => {
             refreshLocationBtn: $('refreshLocationBtn'),
         },
 
+        logLevelSelects: [$('logLevelSelect'), $('statusLogLevelSelect')],
+
         location: { city: $('cityName'), sunrise: $('lightTime'), sunset: $('darkTime'), nextUpdate: $('nextUpdate'), cityBadge: $('cityBadge') },
         profile: { username: $('profile-username'), method: $('profile-method'), progress: $('profile-learning-progress'), interval: $('profile-auto-interval') },
         status: { brightness: $('status-brightness'), phase: $('status-learning-phase'), logs: $('status-logs-recorded'), auto: $('status-auto-brightness'), next: $('status-next-adjustment'), als: $('status-als'), confidence: $('status-confidence'), power: $('status-power'), nightLight: $('status-nightlight'), lightMode: $('status-lightmode'), lightModeLabel: $('status-lightmode-label') },
@@ -170,6 +172,7 @@ window.addEventListener('DOMContentLoaded', () => {
         (pendingUIUpdates ||= []).push(fn);
     }
 
+    let currentLogLevel = 'normal';
     let lastKnownLearningState = { autoEnabled: null, learningComplete: null, adjustDuringLearning: true };
     let lastLearningConfig = null;
     let chartStaticCanvas = null;
@@ -438,7 +441,28 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const LOG_VERBOSITY = { debug: 0, info: 1, success: 2, warn: 3, error: 4 };
+    function shouldShowLogLevel(logLevel, filter) {
+        if (filter === 'off') return false;
+        const verbosity = LOG_VERBOSITY[logLevel];
+        if (typeof verbosity !== 'number') return filter !== 'off';
+        const threshold = { debug: 0, info: 1, normal: 2 }[filter];
+        return typeof threshold === 'number' && verbosity >= threshold;
+    }
+
+    function reapplyLogFilter() {
+        requestUIUpdate(() => {
+            const items = elems.logsList ? Array.from(elems.logsList.children) : [];
+            for (const li of items) {
+                const level = (li.className.match(/log-level-(\\w+)/) || [])[1] || '';
+                const show = shouldShowLogLevel(level, currentLogLevel);
+                li.style.display = show ? '' : 'none';
+            }
+        });
+    }
+
     function updateLogsUI({ level, timestamp, message }) {
+        if (!shouldShowLogLevel(level, currentLogLevel)) return;
         requestUIUpdate(() => {
             if (!hasLogs) {
                 elems.logsList.innerHTML = '';
@@ -490,6 +514,7 @@ window.addEventListener('DOMContentLoaded', () => {
             adjustDuringLearning: elems.inputs.adjustDuringLearning?.checked ?? true,
             cameraDevice: cameraSelect?.value ?? prev.cameraDevice ?? '',
             targetDisplay: displaySelect?.value ?? prev.targetDisplay ?? 'all',
+            logLevel: elems.logLevelSelects.find(s => s?.value)?.value ?? prev.logLevel ?? 'normal',
         };
         for (const { id, key, def } of NUMERIC_FIELDS) {
             config[key] = getNumericValue(elems.inputs[id], prev[key] ?? def);
@@ -540,6 +565,11 @@ window.addEventListener('DOMContentLoaded', () => {
             if (cameraSelect) syncSelectValue(cameraSelect, cfg.cameraDevice ?? '');
             const displaySelect = $('targetDisplaySelect');
             if (displaySelect) syncSelectValue(displaySelect, cfg.targetDisplay ?? 'all');
+
+            for (const select of elems.logLevelSelects) {
+                if (select) syncSelectValue(select, cfg.logLevel ?? 'normal');
+            }
+            currentLogLevel = cfg.logLevel ?? 'normal';
 
             lastAppliedConfig = cfg;
 
@@ -1472,6 +1502,11 @@ window.addEventListener('DOMContentLoaded', () => {
     Object.values(elems.inputs).forEach(input => input && input.addEventListener('input', debouncedSave));
     $('cameraDeviceSelect')?.addEventListener('change', handleSettingsChange);
     $('targetDisplaySelect')?.addEventListener('change', handleSettingsChange);
+    elems.logLevelSelects?.forEach(select => select && select.addEventListener('change', () => {
+        currentLogLevel = select.value;
+        elems.logLevelSelects.forEach(s => s && s !== select && (s.value = select.value));
+        reapplyLogFilter();
+    }));
     elems.inputs.adjustDuringLearning?.addEventListener('change', () => {
         const checked = elems.inputs.adjustDuringLearning.checked;
         setText($('adjustDuringLearningState'), checked ? t('settings.on') : t('settings.off'));

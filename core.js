@@ -53,6 +53,7 @@ const defaultSettings = deepFreeze({
   "adjustDuringLearning": true,
   "language": "en",
   "activities": { "gaming": { "enabled": false }, "video": { "enabled": false }, "custom": [] },
+  "logLevel": "normal",
   "startWithSystem": true,
   "cameraDevice": "",
   "cameraBackend": "auto",
@@ -78,6 +79,7 @@ const SETTINGS_SCHEMA = {
   cameraBackend: { type: 'enum', values: ['auto', 'builtin', 'ffmpeg'] },
   targetDisplay: { type: 'string', maxLength: 256 },
   applyToAllDisplays: { type: 'boolean' },
+  logLevel: { type: 'enum', values: ['debug', 'info', 'normal', 'off'] },
 };
 
 const clampNumber = (value, { min, max, integer }, fallback) => {
