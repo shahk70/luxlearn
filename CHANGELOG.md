@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.7.0] - 2026-09-20
+
+### Added
+- **Central event log (`logger.js`).**
+  All main-process modules — app lifecycle, weather/GPS probe, webcam
+  (including the analysis worker via a `parentPort` log channel), signals,
+  JSON persistence, and the learning engine — now report to one sink with
+  `debug` / `info` / `success` / `warn` / `error` levels, a 200-entry buffer,
+  and stdout mirroring for dev runs. (`logger.js`, `package.json`)
+- **Log history replay on the Status page.**
+  New `get-log-history` IPC serves everything logged before the UI was
+  ready (startup, GPS probe, …); the renderer merges it with an
+  exact-duplicate guard, so the Log Detail filter (Debug / Info / Normal /
+  Off) now applies to the full session across all modules, not just the
+  engine. (`app/app.js`, `app/preload.js`, `app/renderer.js`)
+- **Per-refresh weather provenance log.**
+  Each weather cycle records its provider and location source, e.g.
+  `Weather updated via open-meteo (location: gps, city: …)`, plus an
+  explicit note whenever IP geolocation is used because the sensor
+  provided no fix. (`app/app.js`, `weather.js`)
+
+### Changed
+- Per-cycle-capable diagnostics (active-window reads, screenshot
+  processing, face-detection errors, raw-format probe output) are logged
+  at `debug` so the default Normal view stays readable; genuine failures
+  (worker crash, corrupt JSON, save errors) remain `warn`/`error`.
+
 ## [1.6.1] - 2026-09-20
 
 ### Fixed
