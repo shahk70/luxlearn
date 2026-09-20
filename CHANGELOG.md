@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.6.1] - 2026-09-20
+
+### Fixed
+- **Log Detail filter now re-filters the visible list.**
+  The level extractor used `/log-level-(\\w+)/`, which matches a literal
+  backslash and never matched rows like `log-level-info` — so switching
+  between Debug / Info / Normal visibly did nothing for existing entries.
+  The pattern is fixed, rows re-filter on change, and the choice
+  is saved so it survives restarts. (`app/renderer.js`)
+- **GPS probe failure no longer fails silently.**
+  The sensor probe discarded the watcher's status on failure (bare `"{}"`),
+  so a permanent IP fallback never explained itself. The probe now reports
+  `Disabled` / `NoData` / `Initializing` / `NoSensor`, mapped to an
+  actionable reason (e.g. enable Location for desktop apps) shown in the
+  `IP` badge tooltip next to the city name. Coordinate parsing also uses
+  `Number.isFinite` instead of truthiness. (`weather.js`, `app/app.js`,
+  `app/renderer.js`)
+
 ## [1.6.0] - 2026-09-20
 
 ### Added
