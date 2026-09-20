@@ -2424,6 +2424,97 @@ select {
 }
 
 /* ----------------------------------- */
+/* 22. Layout robustness: no overlap or crush at small sizes
+/* ----------------------------------- */
+
+/* Flex children default to min-width:auto, which lets wide content force
+/* overlap instead of shrinking — the classic "elements stack wrong" cause. */
+.main-content {
+  min-width: 0;
+}
+
+/* Definition lists: long translated labels must wrap, values must shrink. */
+.definition-list {
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: start;
+
+  dt {
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+
+  dd {
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Toggle rows: keep the switch pinned right, let the label give instead. */
+.toggle-row {
+  gap: var(--space-4);
+
+  .toggle-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+
+  .toggle-container {
+    flex-shrink: 0;
+  }
+}
+
+/* Panels that assumed desktop width: allow wrapping before they collide. */
+.about-hero {
+  .about-hero-body {
+    flex-wrap: wrap;
+  }
+}
+
+#page-settings {
+  .custom-fields {
+    .row {
+      flex-wrap: wrap;
+      row-gap: var(--space-3);
+    }
+  }
+}
+
+.log-level-filter {
+  flex-wrap: wrap;
+}
+
+.activity-form {
+  input#activityName {
+    width: min(10rem, 100%);
+    min-width: 0;
+  }
+
+  input#activityValue {
+    min-width: 0;
+  }
+}
+
+/* Learned-weights rows: stack the bar under the name on narrow cards. */
+@media (max-width: 560px) {
+  .weights-list {
+    li {
+      grid-template-columns: 1fr auto;
+      row-gap: var(--space-1);
+
+      .weight-bar {
+        grid-column: 1 / -1;
+        order: 3;
+      }
+    }
+  }
+
+  .definition-list {
+    gap: var(--space-2) var(--space-4);
+  }
+}
+
+/* ----------------------------------- */
 /* 21. Reduced motion (preserved)
 /* ----------------------------------- */
 @media (prefers-reduced-motion: reduce) {

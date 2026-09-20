@@ -330,39 +330,55 @@ async function fetchFromApi() {
     const query = `${latitude},${longitude}`;
 
     let lastError = null;
-    let attemptedKey = null;
     const usedKeys = new Set();
 
-    for (let attempt = 0; attempt < Math.min(3, keys.length); attempt++) {
+    // Try several distinct keys before giving up: a rejected, throttled, or
+    // flaky key must never sink the whole cycle while others are configured.
+    // (Key values are never logged — only their position in the pool.)
+    const maxAttempts = Math.min(5, keys.length);
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const privateUnused = keys.filter((k) => isPrivateKey(k) && !usedKeys.has(k));
         const apiKey = privateUnused.length > 0 ? privateUnused[0]
             : pickRandomKey(keys.filter((k) => !usedKeys.has(k)), null);
         if (!apiKey) break;
         usedKeys.add(apiKey);
-        attemptedKey = apiKey;
+        const keyLabel = `key ${keys.indexOf(apiKey) + 1}/${keys.length}`;
 
         let res;
         try {
             ({ res } = await fetchForecastWithKey(apiKey, query));
         } catch (err) {
             lastError = err;
+            logger.debug(`WeatherAPI ${keyLabel} network failure (${err?.message || err}); trying another key…`);
             continue;
         }
         if (res.status === 401 || res.status === 403 || res.status === 429) {
             lastError = new Error(`WeatherAPI rejected key (HTTP ${res.status})`);
+            logger.debug(`WeatherAPI ${keyLabel} rejected (HTTP ${res.status}); trying another key…`);
             continue;
         }
-        if (res.status >= 500) {
-            lastError = new Error(`WeatherAPI server error (HTTP ${res.status})`);
+        if (!res.ok) {
+            lastError = new Error(`WeatherAPI request failed (HTTP ${res.status})`);
+            logger.debug(`WeatherAPI ${keyLabel} failed (HTTP ${res.status}); trying another key…`);
             continue;
         }
-        if (!res.ok) throw new Error(`API ${res.status}`);
 
-        const data = await res.json();
+        let data;
+        try {
+            data = await res.json();
+        } catch (err) {
+            lastError = err;
+            logger.debug(`WeatherAPI ${keyLabel} returned an unreadable response; trying another key…`);
+            continue;
+        }
 
         const { location, current, forecast } = data;
         const astro = forecast?.forecastday?.[0]?.astro;
-        if (!astro) throw new Error('WeatherAPI response missing forecast astro data');
+        if (!astro || !location?.localtime || !location?.tz_id) {
+            lastError = new Error('WeatherAPI response missing forecast astro data');
+            logger.debug(`WeatherAPI ${keyLabel} returned an incomplete response; trying another key…`);
+            continue;
+        }
         const dateDate = location.localtime.split(' ')[0];
         const timeZone = location.tz_id;
 
@@ -379,17 +395,23 @@ async function fetchFromApi() {
             return new Date(naiveUTC.getTime() - offsetMs).toISOString();
         };
 
-        return {
-            sunrise: parseTime(astro.sunrise),
-            sunset: parseTime(astro.sunset),
-            cloud: typeof current.cloud === 'number' ? current.cloud : 0,
-            city: location.name,
-            latitude,
-            longitude,
-            tz_id: timeZone,
-            lastUpdated: new Date().toISOString(),
-            locationSource: loc._locationSource || memCache.source || null,
-        };
+        try {
+            return {
+                sunrise: parseTime(astro.sunrise),
+                sunset: parseTime(astro.sunset),
+                cloud: typeof current.cloud === 'number' ? current.cloud : 0,
+                city: location.name,
+                latitude,
+                longitude,
+                tz_id: timeZone,
+                lastUpdated: new Date().toISOString(),
+                locationSource: loc._locationSource || memCache.source || null,
+            };
+        } catch (err) {
+            lastError = err;
+            logger.debug(`WeatherAPI ${keyLabel} response failed to parse (${err?.message || err}); trying another key…`);
+            continue;
+        }
     }
 
     if (lastError) throw lastError;
