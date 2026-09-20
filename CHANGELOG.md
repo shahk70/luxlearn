@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.8.2] - 2026-09-20
+
+### Fixed
+- **Removed the revoked bundled WeatherAPI key pool.**
+  Probed directly: every bundled key returns HTTP 401 `code=2006 "API key
+  is invalid"`, so each weather cycle burned up to 10 failed requests and
+  filled the log with rejection lines for everyone without private keys —
+  which is why the 1.8.1 logging improvement didn't stop the errors.
+  WeatherAPI is now opt-in via `WEATHERAPI_PRIVATE_KEYS` / `WEATHERAPI_KEYS`
+  / `WEATHERAPI_KEY` (`.env`); everyone else goes straight to the keyless
+  Open-Meteo path that was already working. (`weather.js`, `README.md`,
+  `SECURITY.md`, `.env.example`)
+- **WeatherAPI is no longer double-retried.**
+  The per-key rotation loop already tries every configured key, so the outer
+  `retry(fetchFromApi, 2, 500)` only re-ran already-rejected keys and doubled
+  requests and log lines on deterministic failures. One pass now; transient
+  per-key network failures still fall through to the next key and then to
+  Open-Meteo / cached suncalc / defaults. (`weather.js`)
+
 ## [1.8.1] - 2026-09-20
 
 ### Fixed

@@ -2,7 +2,7 @@
 
 const SunCalc = require('suncalc');
 const logger = require('./logger');
-const { loadJSON, retry, WEATHER_JSON_PATH, DEFAULT_SUNRISE, DEFAULT_SUNSET, PLATFORM, execPowerShell } = require('./core');
+const { loadJSON, WEATHER_JSON_PATH, DEFAULT_SUNRISE, DEFAULT_SUNSET, PLATFORM, execPowerShell } = require('./core');
 
 const CONFIG = {
     WEATHERAPI_URL: 'https://api.weatherapi.com/v1/forecast.json',
@@ -17,7 +17,14 @@ const CONFIG = {
     DAILY_WEATHER_TTL_MS: 3600000, // 1 hour
 };
 
-const BUNDLED_PUBLIC_KEYS = '6St40m8Siqww0dlFI1g7FqVKGP8A8lCi,cuNEvvF9R6nrkgfxtyb6i4ESJn8Ni8b6,cnI9GWvp7hOzR7qPI9Z3uQpREHRKn6jb,5KrZFlv6DbWosTDfrcSv1F8s5bLZdNf0,NcoH9JHLho0vPsqap57C2aAdO2HtcaVA,gI4KPjPSN04O0kiuk4O7gNkysjWfF2fI'
+// The previously bundled free-tier pool was revoked by the provider — probed
+// 2026-09-20, every key returns HTTP 401 code=2006 "API key is invalid".
+// Keeping dead keys meant every weather cycle burned up to 10 failed
+// requests and filled the log with rejection lines for all users without
+// private keys. The pool stays empty until valid keys exist; WeatherAPI is
+// now opt-in via WEATHERAPI_PRIVATE_KEYS / WEATHERAPI_KEYS / WEATHERAPI_KEY
+// (.env), and everyone else uses the keyless Open-Meteo path below.
+const BUNDLED_PUBLIC_KEYS = ''
     .split(',').map((k) => k.trim()).filter(Boolean);
 
 function getWeatherApiKeys() {
@@ -332,10 +339,10 @@ async function fetchFromApi() {
     let lastError = null;
     const usedKeys = new Set();
 
-    // Try several distinct keys before giving up: a rejected, throttled, or
+    // Try every configured key before giving up: a rejected, throttled, or
     // flaky key must never sink the whole cycle while others are configured.
     // (Key values are never logged — only their position in the pool.)
-    const maxAttempts = Math.min(5, keys.length);
+    const maxAttempts = keys.length;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const privateUnused = keys.filter((k) => isPrivateKey(k) && !usedKeys.has(k));
         const apiKey = privateUnused.length > 0 ? privateUnused[0]
@@ -496,7 +503,10 @@ async function updateDailyWeatherInfo(userSettings = {}) {
     let locRef = null;
 
     try {
-        result = await retry(fetchFromApi, 2, 500);
+        // Single pass — the per-key loop above already IS the retry strategy.
+        // Wrapping this in retry() re-ran already-rejected keys and doubled
+        // requests/logs on deterministic failures (e.g. revoked keys).
+        result = await fetchFromApi();
         source = 'weatherapi';
         // findLocation ran inside fetchFromApi — its coordinates were cached,
         // so we can't pull locRef._locationSource directly; fall back to the
