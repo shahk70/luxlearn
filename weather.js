@@ -64,7 +64,7 @@ try{
  while($w.Status -ne 'Ready' -and (Get-Date) -lt $s.AddSeconds(20)){Start-Sleep -m 300}
  if($w.Position.Location.IsUnknown){throw}
  @{lat=$w.Position.Location.Latitude;lon=$w.Position.Location.Longitude;status=$w.Status.ToString()}|ConvertTo-Json -Compress
-}catch{Write-Output "{}"}
+}catch{ @{status=$(if($w){$w.Status.ToString()}else{'NoSensor'})}|ConvertTo-Json -Compress }
 `.replace(/[\r\n]+/g, ' ');
 
 function haversineDistanceKm(a, b) {
@@ -122,12 +122,32 @@ function isValidCoord(loc) {
 }
 
 let lastGpsProbeTime = 0;
-// GPS probes can block for up to 12 s (the in-script watcher timeout) on
+// GPS probes can block for up to ~20 s (the in-script watcher timeout) on
 // machines without a sensor, so rate-limit them. The cooldown is kept just
 // under the hourly weather refresh, so every hourly cycle re-validates an
 // IP-derived location against the sensor (instantly fixing VPN cases) while
 // GPS-less machines only pay the probe cost once per cycle.
 const GPS_PROBE_COOLDOWN_MS = 45 * 60 * 1000;
+
+// Last sensor probe outcome — surfaced to the UI so a permanent IP fallback
+// explains itself instead of failing silently (sensor missing vs. Windows
+// Location turned off vs. still warming up).
+let lastProbeAdvice = null;
+
+function probeAdviceForStatus(status) {
+    switch (status) {
+        case 'Disabled':
+            return 'Windows Location is turned off or blocked for desktop apps — enable it under Settings > Privacy & security > Location';
+        case 'NoData':
+            return 'No location sensor is reporting data on this device (no GPS hardware or no signal)';
+        case 'Initializing':
+            return 'Location sensor was still starting — will retry automatically';
+        case 'NoSensor':
+            return 'Windows location API is unavailable on this device';
+        default:
+            return 'Location sensor returned no fix — will retry automatically';
+    }
+}
 
 async function findLocation(forceRefresh = false) {
     const now = Date.now();
@@ -157,14 +177,20 @@ async function findLocation(forceRefresh = false) {
         try {
             const output = await execPowerShell(PS_COMMAND, null);
             const data = JSON.parse(output);
-            if (data && data.lat && data.lon) {
-                loc = { latitude: data.lat, longitude: data.lon };
+            const lat = Number(data?.lat);
+            const lon = Number(data?.lon);
+            if (Number.isFinite(lat) && Number.isFinite(lon)) {
+                loc = { latitude: lat, longitude: lon };
                 source = 'gps';
-                console.debug('[weather] GPS fix acquired', { lat: data.lat, lon: data.lon, status: data.status });
+                lastProbeAdvice = null;
+                console.debug('[weather] GPS fix acquired', { lat, lon, status: data?.status });
             } else {
-                console.warn('[weather] GPS probe returned no fix (empty or invalid)', { raw: output });
+                const status = typeof data?.status === 'string' ? data.status : 'unknown';
+                lastProbeAdvice = probeAdviceForStatus(status);
+                console.warn('[weather] GPS probe returned no fix', { status, advice: lastProbeAdvice });
             }
         } catch (error) {
+            lastProbeAdvice = probeAdviceForStatus('unknown');
             console.warn('[weather] PowerShell geolocation lookup failed:', error?.message || error);
         }
     }
@@ -490,7 +516,12 @@ async function updateDailyWeatherInfo(userSettings = {}) {
     // call produced the coordinates used.  If the path never called findLocation
     // (cached-suncalc / default fallback) the field simply stays undefined.
     if (locRef && locRef._locationSource) result.locationSource = locRef._locationSource;
+    // When the sensor lost and IP won, explain why so the UI can show the
+    // reason instead of a bare "IP" badge.
+    if (result.locationSource && result.locationSource !== 'gps' && lastProbeAdvice) {
+        result.locationDetail = lastProbeAdvice;
+    }
     return result;
 }
 
-module.exports = { updateDailyWeatherInfo, refreshLocationNow };
+module.exports = { updateDailyWeatherInfo, refreshLocationNow, getLocationDiagnostic: () => lastProbeAdvice };

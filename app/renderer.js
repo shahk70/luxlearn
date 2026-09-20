@@ -215,7 +215,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     elems.location.cityBadge.title = 'Location from GPS sensor';
                 } else if (src === 'ip') {
                     elems.location.cityBadge.textContent = 'IP';
-                    elems.location.cityBadge.title = 'Location from IP geolocation (GPS unavailable)';
+                    elems.location.cityBadge.title = data.locationDetail
+                        || 'Location from IP geolocation (GPS unavailable)';
                 } else {
                     elems.location.cityBadge.textContent = '';
                     elems.location.cityBadge.title = '';
