@@ -55,7 +55,9 @@ $font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
+  --radius-xl: 18px;
   --radius-pill: 999px;
+  --shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.05);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-fast: 0.15s;
@@ -1882,6 +1884,547 @@ select {
 
 /* ----------------------------------- */
 /* 19. Reduced motion
+/* ----------------------------------- */
+/* ----------------------------------- */
+/* 20. Detail overhaul: polish layer
+/* Refines micro-interactions, hierarchy and tactility without
+/* changing layout structure or class contracts.
+/* ----------------------------------- */
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-fg);
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+body {
+  background:
+    radial-gradient(1200px 500px at 85% -10%, var(--color-accent-soft), transparent 60%),
+    radial-gradient(900px 420px at -10% 110%, var(--color-accent-soft), transparent 55%),
+    var(--color-bg);
+  background-attachment: fixed;
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+  font-feature-settings: 'cv11', 'ss01', 'tnum' 0;
+}
+
+/* Page titles: accent rule for scanability */
+.page > h1 {
+  position: relative;
+  padding-left: 0.9rem;
+  text-wrap: balance;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.15em;
+    bottom: 0.15em;
+    width: 4px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--color-accent), var(--color-accent-hover));
+    box-shadow: 0 1px 4px var(--color-accent-ring);
+  }
+}
+
+/* Titlebar: subtle depth + vibrancy */
+.titlebar {
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+
+  .titlebar-btn {
+    border-radius: var(--radius-sm);
+    margin: 4px 2px;
+    height: calc(100% - 8px);
+    width: 42px;
+
+    &:last-child {
+      margin-right: 4px;
+    }
+  }
+}
+
+/* Sidebar: indicator rail + calmer hover */
+.sidebar {
+  scrollbar-width: thin;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 8px;
+    border: 2px solid var(--color-surface);
+  }
+
+  li {
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 20%;
+      bottom: 20%;
+      width: 3px;
+      border-radius: 3px;
+      background: var(--color-accent);
+      transform: scaleY(0);
+      transform-origin: center;
+      transition: transform var(--dur-base) var(--ease-out);
+    }
+
+    &:hover {
+      transform: translateX(1px);
+    }
+
+    &.active {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent);
+
+      &::before {
+        transform: scaleY(1);
+      }
+    }
+
+    &:active {
+      transform: scale(0.99);
+    }
+  }
+
+  .theme-toggle {
+    box-shadow: var(--shadow-xs);
+  }
+}
+
+/* Cards: border highlight instead of shadow jump */
+.card {
+  transition: box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+
+  &:hover {
+    border-color: var(--color-border-strong);
+  }
+
+  .card-header {
+    background: color-mix(in srgb, var(--color-surface) 60%, var(--color-bg));
+  }
+}
+
+/* Buttons: depth, disabled, press physics */
+.btn {
+  letter-spacing: 0.01em;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  &.btn-primary {
+    background: linear-gradient(180deg, var(--color-accent-hover), var(--color-accent));
+    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+
+    &:hover {
+      box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0) scale(0.98);
+    }
+  }
+
+  &.btn-secondary:active,
+  &.btn-danger:active {
+    transform: scale(0.97);
+  }
+
+  &.btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-accent-strong);
+
+    &:hover {
+      background: var(--color-accent-soft);
+    }
+  }
+}
+
+/* Toggles: bordered track, knob shadow, checked glow */
+.toggle-row {
+  .toggle {
+    .slider {
+      border: 1px solid var(--color-border-strong);
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.12);
+
+      &::before {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+      }
+    }
+
+    input:checked + .slider {
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 3px var(--color-accent-ring), inset 0 1px 2px rgba(0, 0, 0, 0.15);
+    }
+
+    input:disabled + .slider {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+/* Radios: card affordance + checked ring */
+.radio-button {
+  &__label {
+    box-shadow: var(--shadow-xs);
+  }
+
+  &__input:checked + .radio-button__label {
+    box-shadow: 0 0 0 1px var(--color-accent), var(--shadow-sm);
+  }
+}
+
+/* Inputs & selects: rhythm, chevron, states */
+input[type='number'],
+input[type='text'],
+select {
+  box-shadow: var(--shadow-xs);
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: var(--color-hover-bg);
+  }
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+}
+
+.number-input-wrapper {
+  input[type='number'] {
+    transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  }
+
+  /* Touch devices have no hover: keep steppers reachable */
+  @media (hover: none) {
+    .stepper-buttons {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+}
+
+/* Readouts: tabular numbers everywhere they matter */
+.definition-list dd,
+#signals-lux,
+.status-card dd,
+.profile-card dd,
+.weight-value,
+.chart-caption {
+  font-variant-numeric: tabular-nums;
+}
+
+.definition-list {
+  dt {
+    min-height: 1.6rem;
+  }
+}
+
+/* Status dot: soft halo */
+.definition-list {
+  #status-auto-brightness {
+    &::before {
+      box-shadow: 0 0 0 3px color-mix(in srgb, currentcolor 18%, transparent);
+    }
+  }
+}
+
+/* Recent changes: dot marker + calmer text */
+.recent-changes-list {
+  li {
+    position: relative;
+    padding-left: 1.1rem;
+    color: var(--color-fg-muted);
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.95em;
+      width: 0.45rem;
+      height: 0.45rem;
+      border-radius: 50%;
+      background: currentcolor;
+    }
+
+    span {
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}
+
+/* Weights: higher-contrast track + animated fill */
+.weights-list {
+  li {
+    .weight-bar {
+      background: var(--color-border);
+      box-shadow: inset 0 1px 1px rgba(15, 23, 42, 0.08);
+    }
+
+    .weight-fill {
+      box-shadow: 0 0 8px var(--color-accent-ring);
+      transition: width 0.45s var(--ease-out);
+    }
+  }
+}
+
+/* Chips & badges: hairline border + micro type */
+.source-chip,
+.about-version-chip,
+.about-backend-chip,
+.city-badge,
+.activity-disabled-badge {
+  border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
+  letter-spacing: 0.03em;
+}
+
+/* Toggles for ranges: denser pill */
+.history-header .range-toggle {
+  box-shadow: var(--shadow-xs);
+
+  .range-btn {
+    min-width: 3rem;
+
+    &:active {
+      transform: scale(0.96);
+    }
+  }
+}
+
+/* Update banner: left keyline + icon, less boxy */
+.update-banner {
+  position: relative;
+  border-left: 4px solid var(--color-accent);
+  box-shadow: var(--shadow-md);
+  padding-left: var(--space-5);
+
+  &::before {
+    content: '↓';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--color-accent);
+    color: var(--color-accent-fg);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+}
+
+/* Settings panels: inset grouping */
+#page-settings {
+  .location-data,
+  .custom-fields {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), var(--shadow-xs);
+  }
+
+  .location-update-note {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+}
+
+/* Activities: row hover + chip press */
+.activity-row {
+  border-radius: var(--radius-md);
+  padding-left: var(--space-3);
+  padding-right: var(--space-3);
+  margin-left: calc(var(--space-3) * -1);
+  margin-right: calc(var(--space-3) * -1);
+  transition: background-color var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+}
+
+.preset-chip {
+  box-shadow: var(--shadow-xs);
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.activities-list li {
+  border-radius: var(--radius-md);
+  transition: background-color var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+}
+
+/* Donate wallets: mono rhythm + hover affordance */
+.wallet-container {
+  transition: border-color var(--dur-fast) var(--ease-out);
+  letter-spacing: 0.01em;
+
+  &:hover {
+    border-color: var(--color-accent);
+  }
+}
+
+/* Chart: framed canvas + soft empty state */
+.chart-wrap {
+  canvas {
+    background:
+      linear-gradient(var(--color-bg), var(--color-bg)) padding-box,
+      var(--color-border);
+    border-radius: var(--radius-md);
+  }
+}
+
+.chart-empty {
+  backdrop-filter: blur(2px);
+}
+
+/* Toast: inverted pill for contrast in both themes */
+#toast {
+  background: var(--color-fg);
+  color: var(--color-bg);
+  border-color: transparent;
+  box-shadow: var(--shadow-lg);
+  font-weight: 600;
+}
+
+/* Confirm: scale-in + sharper hierarchy */
+.confirm-overlay {
+  animation: fade-in 0.18s var(--ease-out);
+}
+
+.confirm-dialog {
+  animation: pop-in 0.22s var(--ease-out);
+  transform-origin: center;
+
+  h3 {
+    letter-spacing: -0.01em;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* About hero: softer logo well */
+.about-hero {
+  .about-logo {
+    box-shadow: var(--shadow-md);
+  }
+}
+
+/* Scrollbars: coherent thin styling */
+.main-content,
+.sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+/* Global focus fallback for custom controls */
+:where(button, input, select, [tabindex='0']):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Narrow windows: icon-rail sidebar, tighter rhythm */
+@media (max-width: 760px) {
+  .sidebar {
+    width: 4.25rem;
+    padding: var(--space-2);
+
+    .sidebar-header {
+      justify-content: center;
+      padding: var(--space-2) 0 var(--space-3);
+
+      h2,
+      .theme-toggle {
+        display: none;
+      }
+    }
+
+    li {
+      justify-content: center;
+      padding: 0.65rem 0;
+
+      span {
+        display: none;
+      }
+    }
+  }
+
+  .main-content {
+    padding: var(--space-4);
+  }
+
+  .page > h1 {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-4);
+  }
+
+  .card {
+    .card-header,
+    .card-body,
+    .card-footer {
+      padding: var(--space-4);
+    }
+  }
+
+  .update-banner {
+    align-items: flex-start;
+  }
+}
+
+/* High-contrast / forced-colors: keep controls legible */
+@media (forced-colors: active) {
+  .toggle .slider::before,
+  .radio-button__custom::after,
+  .weight-fill {
+    background: ButtonText;
+  }
+
+  .sidebar li.active {
+    outline: 1px solid ButtonText;
+  }
+}
+
+/* ----------------------------------- */
+/* 21. Reduced motion (preserved)
 /* ----------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -1,6 +1,7 @@
 // signals.js
 
 const { execAsync, execPowerShell, PLATFORM, commandExists } = require('./core');
+const { cachedFn } = require('./cachedFn');
 const fs = require('fs/promises');
 const path = require('path');
 
@@ -82,38 +83,15 @@ async function linuxGetPowerStatus() {
 }
 
 const POWER_CACHE_TTL_MS = 60 * 1000;
-let cachedPowerStatus = null;
-let cachedPowerStatusAt = 0;
-let cachedPowerStatusReady = false;
-let powerStatusInFlight = null;
-
 async function getPowerStatus() {
-  const now = Date.now();
-  if (cachedPowerStatusReady && (now - cachedPowerStatusAt) < POWER_CACHE_TTL_MS) {
-    return cachedPowerStatus;
-  }
-  if (powerStatusInFlight) return powerStatusInFlight;
-  powerStatusInFlight = (async () => {
-    try {
-      switch (PLATFORM) {
-        case 'win32': return await winGetPowerStatus();
-        case 'darwin': return await macGetPowerStatus();
-        case 'linux': return await linuxGetPowerStatus();
-        default: return null;
-      }
-    } catch {
-      return null;
+  return cachedFn(async () => {
+    switch (PLATFORM) {
+      case 'win32': return await winGetPowerStatus();
+      case 'darwin': return await macGetPowerStatus();
+      case 'linux': return await linuxGetPowerStatus();
+      default: return null;
     }
-  })();
-  try {
-    const result = await powerStatusInFlight;
-    cachedPowerStatus = result;
-    cachedPowerStatusAt = Date.now();
-    cachedPowerStatusReady = true;
-    return result;
-  } finally {
-    powerStatusInFlight = null;
-  }
+  }, POWER_CACHE_TTL_MS)();
 }
 
 
@@ -179,38 +157,15 @@ async function isRedshiftishRunning() {
 }
 
 const NIGHT_LIGHT_CACHE_TTL_MS = 60 * 1000;
-let cachedNightLight = null;
-let cachedNightLightAt = 0;
-let cachedNightLightReady = false;
-let nightLightInFlight = null;
-
 async function getNightLightState() {
-  const now = Date.now();
-  if (cachedNightLightReady && (now - cachedNightLightAt) < NIGHT_LIGHT_CACHE_TTL_MS) {
-    return cachedNightLight;
-  }
-  if (nightLightInFlight) return nightLightInFlight;
-  nightLightInFlight = (async () => {
-    try {
-      switch (PLATFORM) {
-        case 'win32': return await winGetNightLight();
-        case 'darwin': return await macGetNightLight();
-        case 'linux': return await linuxGetNightLight();
-        default: return null;
-      }
-    } catch {
-      return null;
+  return cachedFn(async () => {
+    switch (PLATFORM) {
+      case 'win32': return await winGetNightLight();
+      case 'darwin': return await macGetNightLight();
+      case 'linux': return await linuxGetNightLight();
+      default: return null;
     }
-  })();
-  try {
-    const result = await nightLightInFlight;
-    cachedNightLight = result;
-    cachedNightLightAt = Date.now();
-    cachedNightLightReady = true;
-    return result;
-  } finally {
-    nightLightInFlight = null;
-  }
+  }, NIGHT_LIGHT_CACHE_TTL_MS)();
 }
 
 
@@ -518,7 +473,6 @@ async function winGetCim(instance) {
   // $-signs and backticks are literal inside single quotes, so no further
   // escaping is needed. We route through execPowerShell (base64
   // -EncodedCommand) to avoid the extra cmd.exe quoting layer entirely.
-  const { execPowerShell } = require('./core');
   let ps = '(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness).CurrentBrightness';
   if (instance) {
     const escaped = String(instance).replace(/'/g, "''");
@@ -534,7 +488,6 @@ async function winGetCim(instance) {
 }
 
 async function winSetCimInstance(clamped, instance) {
-  const { execPowerShell } = require('./core');
   const brightness = Math.max(0, Math.min(100, Math.round(Number(clamped))));
   if (!Number.isInteger(brightness)) throw new Error(`Invalid brightness value: ${clamped}`);
   if (!instance) {

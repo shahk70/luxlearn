@@ -199,7 +199,7 @@ const execAsync = util.promisify(exec);
 const execFileAsync = util.promisify(execFile);
 
 const DEFAULT_PS_TIMEOUT_MS = 5000;
-const PS_EXE = process.platform === 'win32'
+const PS_EXE = PLATFORM === 'win32'
   ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
   : 'powershell';
 
@@ -222,7 +222,6 @@ function execPowerShell(command, timeoutMs = DEFAULT_PS_TIMEOUT_MS) {
     }
 
     const encoded = Buffer.from(command, 'utf16le').toString('base64');
-    const { execFile } = require('child_process');
     execFile(PS_EXE, ['-NoProfile', '-EncodedCommand', encoded], { signal: controller.signal, windowsHide: true }, (err, stdout) => {
       if (settled) return;
       settled = true;
@@ -252,7 +251,7 @@ module.exports = {
   // settings
   defaultSettings, DEFAULT_SUNRISE, DEFAULT_SUNSET, sanitizeSettings, deepFreeze,
   // persistence / flow
-  loadJSON, saveJSON, retry,
+  loadJSON, saveJSON, retry, deepClone,
   // exec helpers
   PLATFORM, execAsync, execPowerShell, commandExists,
 };

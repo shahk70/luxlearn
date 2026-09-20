@@ -506,7 +506,7 @@ function analyzeFrame({ buffer, width, height, detectFaces }) {
       faces: {
         detected: faceAnalysis.detected,
         count: faceAnalysis.count,
-        faceBrightness: faceAnalysis.faceExposure ? Math.round(faceAnalysis.faceExposure) : 'N/A',
+        faceBrightness: faceAnalysis.faceExposure ? Math.round(faceAnalysis.faceExposure) : null,
         positions: faceAnalysis.faces
       },
       frameWidth: width,

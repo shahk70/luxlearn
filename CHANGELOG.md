@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.6.0] - 2026-09-20
+
+### Added
+- **Learning math extracted to `algorithm.js`.**
+  Feature registry (`FEATURE_DEFINITIONS`, numeric/categorical splits),
+  array stats, matrix algebra, and weighted ridge regression moved out of
+  `BrightnessManager.js` into an independently testable module with no
+  behavior change. (`algorithm.js`, `BrightnessManager.js`)
+- **Shared async cache helper `cachedFn.js`.**
+  Deduplicates concurrent calls, caches for a TTL, never leaks in-flight
+  promises. Power and night-light reads in `signals.js` now use it instead
+  of hand-rolled cache variables. (`cachedFn.js`, `signals.js`)
+- **Design detail overhaul (SCSS polish layer).**
+  New section 20 in `app/style.scss`: accent-ruled page titles, sidebar
+  active indicator rail, toggle checked glow, custom select chevron,
+  touch-visible steppers, tabular numerals for readouts, dot-marked recent
+  changes, higher-contrast animated weight bars, keyline update banner,
+  inverted toast, scale-in confirm dialog, thin coherent scrollbars,
+  icon-rail sidebar under 760px, and `forced-colors` fallback.
+  (`app/style.scss`)
+
+### Changed
+- `core.js` — `PS_EXE` now keys off the shared `PLATFORM` constant;
+  redundant inline `require('child_process')` removed; new `deepClone`
+  export replaces `JSON.parse(JSON.stringify(...))` round-trips in
+  `BrightnessManager.js`.
+- `signals.js` — redundant inline `require('./core')` calls removed.
+- `BrightnessManager.js` — trailing ambient-median window cleanup (window
+  holds raw numbers, dropped obsolete object mapping); fixed indentation
+  in the `updateSettings` restart path.
+- `package.json` — build `files` now ships `algorithm.js` and `cachedFn.js`.
+
+### Fixed
+- **`faceBrightness` type consistency.**
+  The analysis worker emitted the string `'N/A'` when no face exposure was
+  available; it now emits `null` like every other absent numeric signal.
+  (`webcamAnalysis_worker.js`)
+- **Over-limit disk saves now strip internal fields.**
+  `_saveState` sliced `this.logs` (with internal `timestamp_ts`) when over
+  `logLimit` but saved the stripped `logsToSave` otherwise; it now always
+  persists the stripped slice. (`BrightnessManager.js`)
+
 ## [1.5.9] - 2026-09-18
 
 ### Fixed

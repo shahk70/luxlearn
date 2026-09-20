@@ -69,6 +69,8 @@
       "weather.js",
       "webcam.js",
       "webcamAnalysis_worker.js",
+      "algorithm.js",
+      "cachedFn.js",
       "haarcascade_frontalface_default.xml",
       "app/**/*",
       "!app/**/*.map",
