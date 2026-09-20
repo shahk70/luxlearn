@@ -9,22 +9,26 @@ and, if relevant, which OS/Electron version you tested on.
 
 ## WeatherAPI keys
 
-WeatherAPI is opt-in: set your own free-tier key(s) via `WEATHERAPI_PRIVATE_KEYS`
-(tried first, in order), `WEATHERAPI_KEYS`, or the legacy single `WEATHERAPI_KEY`
-in a local `.env` file (see `.env.example`). They are low-privilege,
-quota-limited keys — no billing is exposed. The app tries every configured
-key and falls back to Open-Meteo (keyless) and cached suncalc if all keys
-are rejected, so losing a key doesn't break the feature. A previously
-bundled public pool was revoked by the provider (every key returns HTTP 401
-code 2006) and has been removed — keeping it only generated failed requests
-and log spam for users without private keys.
+`weather.js` bundles a small pool of free-tier WeatherAPI keys
+(`BUNDLED_PUBLIC_KEYS`) so the app works out of the box without any
+configuration. They are low-privilege, quota-limited keys — no billing is
+exposed. The app tries every configured key and falls back to Open-Meteo
+(keyless) and cached suncalc if all keys are rejected, so losing a key
+doesn't break the feature. Note the pool is shared by every install: heavy
+use burns the shared quota and previously got keys revoked (HTTP 401 code
+2006), so a private key via `.env` is recommended for reliable service.
 
 Priority order for keys: `WEATHERAPI_PRIVATE_KEYS` (`.env`) → `WEATHERAPI_KEYS`
-(`.env`) → single `WEATHERAPI_KEY` (`.env`) → keyless fallbacks. If you
-need higher quota or private access, set your own key(s) in a local `.env`
-file (see `.env.example`) — private keys are never committed (`.env` is
-git-ignored). Open-Meteo and the cached/default sunrise-sunset calculation
-run without any key at all.
+(`.env`) → single `WEATHERAPI_KEY` (`.env`) → bundled public pool → keyless
+fallbacks. If you need higher quota or private access, set your own key(s)
+in a local `.env` file (see `.env.example`) — private keys are never
+committed (`.env` is git-ignored). Open-Meteo and the cached/default
+sunrise-sunset calculation run without any key at all.
+
+> ⚠️  The bundled pool lives inside the packaged `app.asar`. Anyone who
+> inspects that archive can read these keys and share them — do not store
+> paid/billing-enabled keys in the bundled pool. Rotate or replace any key
+> you consider sensitive at weatherapi.com.
 
 ## Known-fixed issue: leaked WeatherAPI key (historical)
 

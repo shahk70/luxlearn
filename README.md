@@ -113,12 +113,11 @@ npm start
 
 ### Configuration
 
-The app uses keyless Open-Meteo for location-based sunrise/sunset
-and cloud-cover data out of the box — no configuration needed. If you
-want WeatherAPI instead (it also provides the city name), get a free key
-at <https://www.weatherapi.com/>, copy
+The app ships with bundled WeatherAPI keys, so location-based sunrise/sunset,
+cloud cover, and city names work out of the box — no configuration needed.
+If you want your own keys (free at <https://www.weatherapi.com/>), copy
 `.env.example` to `.env` and set `WEATHERAPI_PRIVATE_KEYS` (tried first, in
-order) or `WEATHERAPI_KEYS` / `WEATHERAPI_KEY`. One key is picked
+order) or `WEATHERAPI_KEYS` (joined with the bundled pool). One key is picked
 per request and a rejected key (invalid, out of quota, or blocked)
 automatically retries with a different one. **`.env` is git-ignored on
 purpose; never commit real API keys.**

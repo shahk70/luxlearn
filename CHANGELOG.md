@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.3] - 2026-09-20
+
+### Fixed
+- **Bundled WeatherAPI pool restored with a live key.**
+  The pool now starts with a working key followed by the revoked spares, so
+  installs without private keys get WeatherAPI data (including the city name)
+  out of the box again, with Open-Meteo / cached suncalc / defaults still
+  behind it. Note the pool quota is shared by all installs. (`weather.js`)
+
 ## [1.8.2] - 2026-09-20
 
 ### Fixed

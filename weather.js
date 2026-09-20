@@ -17,14 +17,14 @@ const CONFIG = {
     DAILY_WEATHER_TTL_MS: 3600000, // 1 hour
 };
 
-// The previously bundled free-tier pool was revoked by the provider — probed
-// 2026-09-20, every key returns HTTP 401 code=2006 "API key is invalid".
-// Keeping dead keys meant every weather cycle burned up to 10 failed
-// requests and filled the log with rejection lines for all users without
-// private keys. The pool stays empty until valid keys exist; WeatherAPI is
-// now opt-in via WEATHERAPI_PRIVATE_KEYS / WEATHERAPI_KEYS / WEATHERAPI_KEY
-// (.env), and everyone else uses the keyless Open-Meteo path below.
-const BUNDLED_PUBLIC_KEYS = ''
+// Bundled public pool, shared by all installs without private keys.
+// NOTE: probed 2026-09-20 — only the first key is live; the other six return
+// HTTP 401 code=2006 "API key is invalid" and serve purely as rotation
+// spares. Every install shares this pool's quota, so expect throttling or a
+// future revocation; set WEATHERAPI_PRIVATE_KEYS / WEATHERAPI_KEYS /
+// WEATHERAPI_KEY (.env) for private quota. Key values are never logged —
+// only their position in the pool.
+const BUNDLED_PUBLIC_KEYS = '7ea8119d248847779d0102919232710,6St40m8Siqww0dlFI1g7FqVKGP8A8lCi,cuNEvvF9R6nrkgfxtyb6i4ESJn8Ni8b6,cnI9GWvp7hOzR7qPI9Z3uQpREHRKn6jb,5KrZFlv6DbWosTDfrcSv1F8s5bLZdNf0,NcoH9JHLho0vPsqap57C2aAdO2HtcaVA,gI4KPjPSN04O0kiuk4O7gNkysjWfF2fI'
     .split(',').map((k) => k.trim()).filter(Boolean);
 
 function getWeatherApiKeys() {
