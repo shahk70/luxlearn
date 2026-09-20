@@ -548,7 +548,7 @@ ipcMain.handle('list-displays', () => listDisplays().catch(() => []));
 
 const RELEASES_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // once a day
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 15000;
 
 function parseVersion(v) {
     return String(v)

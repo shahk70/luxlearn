@@ -69,7 +69,9 @@ const BAYER_FORMAT_RANK = (fmt) => {
 };
 
 // ffmpeg prints supported raw formats (and their frame sizes) on stderr:
-//   v4l2:  "bayer_rggb8 640x480 30/1 ..."   dshow: "Format: bayer_rggb8 (640x480)"
+//   v4l2:  "bayer_rggb8 640x480 30/1 ..."
+//   dshow (-list_options): "pixel_format=bayer_rggb8  min s=640x480 fps=30 ..."
+// (dshow has no -list_formats option, so it must be queried with -list_options.)
 function parseRawFormatLines(text) {
   const found = new Map(); // format -> Set of 'WxH'
   for (const line of String(text || '').split(/\r?\n/)) {
@@ -87,8 +89,10 @@ async function ffmpegListRawFormats(device) {
   if (!bin) return [];
   return new Promise((resolve) => {
     const format = PLATFORM === 'win32' ? 'dshow' : PLATFORM === 'darwin' ? 'avfoundation' : 'v4l2';
+    // NOTE: only v4l2 understands -list_formats; dshow is queried with
+    // -list_options (same -i device selector as the capture path).
     const args = format === 'dshow'
-      ? ['-hide_banner', '-list_formats', 'all', '-f', 'dshow', '-i', device || 'video=0']
+      ? ['-hide_banner', '-f', 'dshow', '-list_options', 'true', '-i', device ? `video=${device}` : 'video=0']
       : format === 'avfoundation'
         ? ['-hide_banner', '-list_formats', 'all', '-f', 'avfoundation', '-i', device || '0']
         : ['-hide_banner', '-list_formats', 'all', '-f', 'v4l2', '-i', device || '/dev/video0'];

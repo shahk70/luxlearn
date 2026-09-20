@@ -12,7 +12,7 @@ const CONFIG = {
     LOCATION_CACHE_TTL_MS: 6 * 60 * 60 * 1000,      // GPS fix – authoritative for 6 h
     IP_LOCATION_CACHE_TTL_MS: 2 * 60 * 60 * 1000,   // IP fix – re-validate against GPS frequently
     MAX_LOCATION_DRIFT_KM: 50,
-    API_TIMEOUT_MS: 8000,
+    API_TIMEOUT_MS: 15000,
     IP_GEOLOCATION_TIMEOUT_MS: 5000,
     DAILY_WEATHER_TTL_MS: 3600000, // 1 hour
 };
