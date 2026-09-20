@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.8.0] - 2026-09-20
+
+### Fixed
+- **Windows raw-camera probe was dead on arrival.**
+  It queried `-list_formats`, an option the dshow demuxer doesn't have, so
+  every probe failed with `Unrecognized option` and the Bayer/raw path
+  (room light from the sensor's green channel + light color) could never
+  activate. Probing now uses `-list_options` with the same device selector
+  as capture; the existing parser already handles that output shape.
+  (`webcam.js`)
+- **WeatherAPI key rotation gave up too early.**
+  Any refusal outside 401/403/429/5xx (e.g. HTTP 400) or a malformed
+  response aborted the whole cycle instead of trying the next key. Up to 5
+  distinct keys are now attempted (private `.env` keys first, in order),
+  every failure mode falls through, and each attempt is logged at debug by
+  key index — values are never logged. (`weather.js`)
+- **Layout overlap at small sizes.**
+  `.main-content` (a flex child) kept `min-width:auto`, letting wide content
+  force overlap instead of shrinking; definition lists, toggle rows, the
+  about hero, time rows, and activity inputs now wrap/shrink properly, and
+  learned-weights rows stack under 560px. (`app/style.scss`)
+
+### Changed
+- Weather and update-check timeouts raised from 8s to 15s for slow links;
+  both run in the background, so nothing blocks. (`weather.js`, `app/app.js`)
+
 ## [1.7.0] - 2026-09-20
 
 ### Added
