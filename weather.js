@@ -353,8 +353,16 @@ async function fetchFromApi() {
             continue;
         }
         if (res.status === 401 || res.status === 403 || res.status === 429) {
-            lastError = new Error(`WeatherAPI rejected key (HTTP ${res.status})`);
-            logger.debug(`WeatherAPI ${keyLabel} rejected (HTTP ${res.status}); trying another key…`);
+            // Read the API's error body — it names the exact cause (2006
+            // invalid, 2007 quota exhausted, 2008 disabled), which a bare
+            // HTTP status never reveals.
+            let detail = `HTTP ${res.status}`;
+            try {
+                const errBody = await res.json();
+                if (errBody?.error) detail += ` code=${errBody.error.code}: ${errBody.error.message}`;
+            } catch { /* non-JSON refusal — status is all we get */ }
+            lastError = new Error(`WeatherAPI rejected key (${detail})`);
+            logger.debug(`WeatherAPI ${keyLabel} rejected (${detail}); trying another key…`);
             continue;
         }
         if (!res.ok) {
