@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.1] - 2026-09-20
+
+### Fixed
+- **WeatherAPI refusals now name the cause.**
+  Rejection logs include the API's own error body (`code=2006 invalid`,
+  `2007 quota exhausted`, `2008 disabled`) instead of a bare HTTP status,
+  so dead keys are distinguishable from throttled ones at a glance.
+  (`weather.js`)
+
 ## [1.8.0] - 2026-09-20
 
 ### Fixed
