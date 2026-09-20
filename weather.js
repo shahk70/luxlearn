@@ -1,6 +1,7 @@
 // weather.js
 
 const SunCalc = require('suncalc');
+const logger = require('./logger');
 const { loadJSON, retry, WEATHER_JSON_PATH, DEFAULT_SUNRISE, DEFAULT_SUNSET, PLATFORM, execPowerShell } = require('./core');
 
 const CONFIG = {
@@ -88,7 +89,7 @@ function isPlausibleDrift(candidate, candidateSource) {
     if (candidateSource === 'gps' && lastAcceptedSource === 'ip') return true;
     const distanceKm = haversineDistanceKm(lastAcceptedLocation, candidate);
     if (distanceKm > CONFIG.MAX_LOCATION_DRIFT_KM) {
-        console.warn(
+        logger.warn(
             `Rejected ${candidateSource} reading ${distanceKm.toFixed(1)}km from last known location ` +
             `(threshold ${CONFIG.MAX_LOCATION_DRIFT_KM}km); keeping previous location.`
         );
@@ -175,6 +176,7 @@ async function findLocation(forceRefresh = false) {
     if (PLATFORM === 'win32' && (forceRefresh || now - lastGpsProbeTime >= GPS_PROBE_COOLDOWN_MS)) {
         lastGpsProbeTime = now;
         try {
+            logger.debug('Probing Windows location sensor…');
             const output = await execPowerShell(PS_COMMAND, null);
             const data = JSON.parse(output);
             const lat = Number(data?.lat);
@@ -183,15 +185,15 @@ async function findLocation(forceRefresh = false) {
                 loc = { latitude: lat, longitude: lon };
                 source = 'gps';
                 lastProbeAdvice = null;
-                console.debug('[weather] GPS fix acquired', { lat, lon, status: data?.status });
+                logger.info(`Location sensor fix: ${lat.toFixed(4)}, ${lon.toFixed(4)} (${data?.status || 'Ready'})`);
             } else {
                 const status = typeof data?.status === 'string' ? data.status : 'unknown';
                 lastProbeAdvice = probeAdviceForStatus(status);
-                console.warn('[weather] GPS probe returned no fix', { status, advice: lastProbeAdvice });
+                logger.warn(`Location sensor returned no fix (status: ${status}) — ${lastProbeAdvice}`);
             }
         } catch (error) {
             lastProbeAdvice = probeAdviceForStatus('unknown');
-            console.warn('[weather] PowerShell geolocation lookup failed:', error?.message || error);
+            logger.warn(`Location sensor lookup failed: ${error?.message || error} — ${lastProbeAdvice}`);
         }
     }
 
@@ -206,9 +208,12 @@ async function findLocation(forceRefresh = false) {
             loc = await ipGeolocation();
             // Only claim IP if a fix was actually produced — GPS staying null
             // is the "we already know loc is ip-derived" signal.
-            if (loc && isValidCoord(loc)) source = 'ip';
+            if (loc && isValidCoord(loc)) {
+                source = 'ip';
+                logger.info(`Using IP geolocation (${loc.city || 'unknown city'}) — sensor provided no fix this cycle`);
+            }
         } catch (error) {
-            console.warn('[weather] IP geolocation lookup failed:', error?.message || error);
+            logger.warn(`IP geolocation lookup failed: ${error?.message || error}`);
         }
     }
 
@@ -468,7 +473,7 @@ async function updateDailyWeatherInfo(userSettings = {}) {
         // cache source (gps / ip) recorded by findLocation itself.
         locRef = { _locationSource: memCache.source || lastAcceptedSource || null };
     } catch (e) {
-        console.debug('WeatherAPI failed:', e.message);
+        logger.debug(`WeatherAPI failed: ${e.message}`);
     }
 
     if (!result) {
@@ -493,7 +498,7 @@ async function updateDailyWeatherInfo(userSettings = {}) {
                 source = 'open-meteo';
             }
         } catch (e) {
-            console.debug('Open-Meteo failed:', e.message);
+            logger.debug(`Open-Meteo failed: ${e.message}`);
         }
     }
 
@@ -502,7 +507,7 @@ async function updateDailyWeatherInfo(userSettings = {}) {
             result = await calculateFromCache();
             source = 'cached-suncalc';
         } catch (e) {
-            console.debug('Cached suncalc failed:', e.message);
+            logger.debug(`Cached suncalc failed: ${e.message}`);
         }
     }
 

@@ -29,6 +29,16 @@ const THRESHOLDS = {
 
 const HAAR_CASCADE_FILE = 'haarcascade_frontalface_default.xml';
 
+// Worker threads have no access to the main-process logger; ship log entries
+// to the parent, which forwards them into the central log (Status page).
+function reportLog(level, message) {
+  try {
+    parentPort.postMessage({ log: { level, message: String(message) } });
+  } catch {
+    // Parent gone — drop the entry.
+  }
+}
+
 let faceClassifier = null;
 let cvLoaded = false;
 let cvReadyPromise = null;
@@ -73,11 +83,11 @@ function getFaceClassifier() {
         const loaded = faceClassifier.load('face_cascade.xml');
         if (!loaded) throw new Error('OpenCV load method returned false');
       } catch (err) {
-        console.warn('[webcamAnalysis.worker] Failed to load Haar Cascade:', err.message);
+        reportLog('warn', `Face-detection model failed to load: ${err.message}`);
         faceClassifier = null;
       }
     } else {
-      console.warn(`[webcamAnalysis.worker] Haar Cascade file not found. Checked: ${searchPaths.join(', ')}. ` +
+      reportLog('warn', `Face-detection model file not found. Checked: ${searchPaths.join(', ')}. ` +
         `Make sure ${HAAR_CASCADE_FILE} is bundled next to this file in the packaged app.`);
     }
   }
@@ -376,7 +386,7 @@ function detectFacesOnMat(grayMat) {
     };
 
   } catch (err) {
-    console.error('[webcamAnalysis.worker] Face detection error:', err.message);
+    reportLog('debug', `Face detection error: ${err.message}`);
     return { detected: false, count: 0, faces: [], error: err.message };
   } finally {
     if (facesRects) facesRects.delete();

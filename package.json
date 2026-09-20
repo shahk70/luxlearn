@@ -71,6 +71,7 @@
       "webcamAnalysis_worker.js",
       "algorithm.js",
       "cachedFn.js",
+      "logger.js",
       "haarcascade_frontalface_default.xml",
       "app/**/*",
       "!app/**/*.map",

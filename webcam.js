@@ -8,6 +8,7 @@ const os = require('os');
 const crypto = require('crypto');
 
 const { PLATFORM, commandExists } = require('./core');
+const logger = require('./logger');
 
 const TIMEOUT_MS = 10000;
 const MAX_BUFFER = 50 * 1024 * 1024;
@@ -92,7 +93,7 @@ async function ffmpegListRawFormats(device) {
         ? ['-hide_banner', '-list_formats', 'all', '-f', 'avfoundation', '-i', device || '0']
         : ['-hide_banner', '-list_formats', 'all', '-f', 'v4l2', '-i', device || '/dev/video0'];
     execFile(bin, args, { timeout: TIMEOUT_MS, windowsHide: true, maxBuffer: MAX_BUFFER }, (err, stdout, stderr) => {
-      if (err) console.warn('[webcam] raw-format probe stderr:', (stderr || stdout || err.message).slice(0, 200));
+      if (err) logger.debug(`Webcam raw-format probe: ${(stderr || stdout || err.message).slice(0, 200)}`);
       resolve(parseRawFormatLines(stderr || stdout));
     });
   });
@@ -198,7 +199,7 @@ async function captureRawFrame(device) {
     // failure is at least diagnosable instead of silently orphaning files.
     fs.promises.unlink(outFile).catch((err) => {
       if (err && err.code !== 'ENOENT') {
-        console.warn('[webcam] Failed to remove temp raw frame:', err.message);
+        logger.warn(`Failed to remove temp raw frame: ${err.message}`);
       }
     });
   }
@@ -484,7 +485,7 @@ async function captureWithCandidate(candidate, device) {
 
     const isValid = await validateCapturedFile(outFile, candidate.ext);
     if (!isValid) {
-      console.warn('[webcam] captured file failed strict validation; using it anyway');
+      logger.warn('Captured file failed strict validation; using it anyway');
     }
 
     return await fs.promises.readFile(outFile);
@@ -494,7 +495,7 @@ async function captureWithCandidate(candidate, device) {
   } finally {
     fs.promises.unlink(outFile).catch((err) => {
       if (err && err.code !== 'ENOENT') {
-        console.warn('[webcam] Failed to remove temp capture file:', err.message);
+        logger.warn(`Failed to remove temp capture file: ${err.message}`);
       }
     });
   }
@@ -565,6 +566,10 @@ function createWorker() {
   const w = new Worker(path.join(__dirname, 'webcamAnalysis_worker.js'));
 
   w.on('message', (msg) => {
+    if (msg && msg.log) {
+      logger.log(msg.log.level, `Analysis worker: ${msg.log.message}`);
+      return;
+    }
     const entry = pending.get(msg.id);
     if (!entry) return;
     pending.delete(msg.id);
@@ -582,7 +587,7 @@ function createWorker() {
   };
 
   w.on('error', (err) => {
-    console.error('[webcam] Analysis worker error:', err.message);
+    logger.error(`Analysis worker error: ${err.message}`);
     failAllPending(err);
     worker = null;
   });

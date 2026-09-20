@@ -9,6 +9,7 @@ const fs = require('fs/promises');
 const { loadJSON, saveJSON, defaultSettings, sanitizeSettings, settingsPath, ICON_PATH, ICON_PNG_PATH, WEATHER_JSON_PATH, execAsync } = require('../core');
 
 const { updateDailyWeatherInfo } = require('../weather');
+const logger = require('../logger');
 const BrightnessManager = require('../BrightnessManager');
 const { shutdownWebcamWorker, resolveCaptureBackendInfo, listCameras } = require('../webcam');
 const { getBrightnessBackendName, getActiveWindowSafe, getPowerStatus, listDisplays } = require('../signals');
@@ -52,7 +53,7 @@ try {
         sendToMainWindow('update-none', { checkedAt: Date.now() });
     });
     autoUpdater.on('error', (err) => {
-        console.warn('Auto-update error:', err && err.message);
+        logger.warn(`Auto-update error: ${err && err.message}`);
     });
     autoUpdater.on('download-progress', (p) => {
         sendToMainWindow('update-download-progress', {
@@ -65,7 +66,7 @@ try {
         sendToMainWindow('update-downloaded', { version: info.version });
     });
 } catch (err) {
-    console.warn('electron-updater unavailable, falling back to notify-only checks:', err.message);
+    logger.warn(`electron-updater unavailable, falling back to notify-only checks: ${err.message}`);
 }
 
 let mainWindow;
@@ -84,15 +85,19 @@ const state = {
 if (process.platform === 'win32') app.setAppUserModelId('com.shah.LuxLearn');
 
 process.on('uncaughtException', (error) => {
-    console.error('Uncaught exception in main process:', error);
+    logger.error(`Uncaught exception in main process: ${error?.stack || error}`);
     try {
         dialog.showErrorBox('Unexpected Error', `Auto Brightness hit an unexpected error and may be unstable:\n${error.message}`);
     } catch (e) { /* dialog module may not be ready yet */ }
 });
 
 process.on('unhandledRejection', (reason) => {
-    console.error('Unhandled promise rejection in main process:', reason);
+    logger.error(`Unhandled promise rejection in main process: ${reason?.stack || reason}`);
 });
+
+// Every log in the app flows through the central logger; the Status page
+// ("Recent Changes") subscribes below, so filters apply to all modules.
+logger.onLog((entry) => sendToMainWindow('log-update', entry));
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -197,10 +202,8 @@ async function initializeLogic() {
         state.settings = sanitizeSettings(loadedSettings, defaultSettings);
         state.weather = cachedWeather || {};
 
-        console.log('--- Brightness Manager Starting ---');
+        logger.info('--- Brightness Manager Starting ---');
         brightnessManager = new BrightnessManager(state.settings);
-
-        brightnessManager.on('log', (logData) => sendToMainWindow('log-update', logData));
         brightnessManager.on('adjustment', () => {
             state.lastAdjustment = Date.now();
             sendDynamicStatusUpdate();
@@ -245,10 +248,10 @@ async function initializeLogic() {
         }, 12000).unref();
 
     } catch (error) {
-        console.error('FATAL:', error);
+        logger.error(`FATAL: ${error?.stack || error}`);
         initRetryCount++;
         if (initRetryCount <= MAX_INIT_RETRIES) {
-            console.warn(`Retrying initialization (${initRetryCount}/${MAX_INIT_RETRIES})...`);
+            logger.warn(`Retrying initialization (${initRetryCount}/${MAX_INIT_RETRIES})...`);
             setTimeout(initializeLogic, 2000 * initRetryCount);
             return;
         }
@@ -271,15 +274,16 @@ async function refreshWeatherData(isInitialLoad = false) {
             const coordsChanged = Number.isFinite(oldLat) && Number.isFinite(oldLon)
                 && (Math.abs(oldLat - newWeatherInfo.latitude) > 0.1 || Math.abs(oldLon - newWeatherInfo.longitude) > 0.1);
             if (coordsChanged) {
-                console.log(`Location updated: (${oldLat},${oldLon}) -> (${newWeatherInfo.latitude},${newWeatherInfo.longitude})`);
+                logger.info(`Location updated: (${oldLat},${oldLon}) -> (${newWeatherInfo.latitude},${newWeatherInfo.longitude})`);
             }
+            logger.info(`Weather updated via ${newWeatherInfo._source || 'unknown'} (location: ${newWeatherInfo.locationSource || 'n/a'}, city: ${newWeatherInfo.city || 'n/a'})`);
             state.weather = newWeatherInfo;
             brightnessManager?.updateWeatherInfo(state.weather);
             if (mainWindow) sendWeatherUpdateToUI();
             saveJSON(WEATHER_JSON_PATH, newWeatherInfo);
         }
     } catch (error) {
-        console.error("Weather refresh failed:", error);
+        logger.error(`Weather refresh failed: ${error?.message || error}`);
     }
 }
 
@@ -395,7 +399,7 @@ async function setLinuxAutostart(enabled) {
         ].join('\n');
         await fs.writeFile(desktopFile, contents, 'utf8');
     } catch (err) {
-        console.error('Failed to update Linux autostart entry:', err.message);
+        logger.error(`Failed to update Linux autostart entry: ${err.message}`);
     }
 }
 
@@ -598,7 +602,7 @@ async function checkForUpdates() {
             notes: data.body || '',
         };
     } catch (error) {
-        console.warn('Update check failed:', error.message);
+        logger.warn(`Update check failed: ${error.message}`);
         return null;
     } finally {
         clearTimeout(timeout);
@@ -610,7 +614,7 @@ function startUpdateChecks(onUpdateAvailable) {
         try {
             if (autoUpdater) {
                 await autoUpdater.checkForUpdates().catch((err) => {
-                    console.warn('electron-updater tick failed:', err && err.message);
+                    logger.warn(`electron-updater tick failed: ${err && err.message}`);
                     return checkForUpdates().then((u) => { if (u) onUpdateAvailable(u); });
                 });
                 return;
@@ -618,7 +622,7 @@ function startUpdateChecks(onUpdateAvailable) {
             const update = await checkForUpdates();
             if (update) onUpdateAvailable(update);
         } catch (err) {
-            console.warn('Update check tick failed:', err.message);
+            logger.warn(`Update check tick failed: ${err.message}`);
         }
     };
 
@@ -740,7 +744,7 @@ ipcMain.handle('about:check-updates', async () => {
                 }
                 return { available: false };
             } catch (updaterErr) {
-                console.warn('electron-updater check failed, trying notify-only check:', updaterErr.message);
+                logger.warn(`electron-updater check failed, trying notify-only check: ${updaterErr.message}`);
             }
         }
         const update = await checkForUpdates();
@@ -793,7 +797,7 @@ ipcMain.handle('about:download-update', async () => {
         });
         return result;
     } catch (err) {
-        console.warn('Download update failed:', err.message);
+        logger.warn(`Download update failed: ${err.message}`);
         return { success: false, error: err.message };
     } finally {
         downloadInProgress = false;
@@ -807,7 +811,7 @@ ipcMain.handle('about:install-update', () => {
         return { success: true };
     } catch (err) {
         app.isQuitting = false;
-        console.warn('quitAndInstall failed:', err && err.message);
+        logger.warn(`quitAndInstall failed: ${err && err.message}`);
         return { success: false, error: 'nothing-downloaded' };
     }
 });
@@ -940,6 +944,7 @@ ipcMain.handle('get-brightness-history', (_, hours = 24) => {
         .filter((l) => l.timestamp_ts >= cutoff)
         .map((l) => ({ t: l.timestamp_ts, b: l.brightness, type: l.type }));
 });
+ipcMain.handle('get-log-history', () => logger.getHistory());
 ipcMain.handle('clear-learning-logs', () => {
     if (!brightnessManager) return { success: false, error: 'Not ready' };
     brightnessManager.clearLearningLogs();
@@ -989,7 +994,7 @@ ipcMain.handle('refresh-location', async () => {
             await refreshLocationNow();
             await refreshWeatherData(true);
         } catch (error) {
-            console.error('Location refresh failed:', error);
+            logger.error(`Location refresh failed: ${error?.message || error}`);
         }
     })();
     return { ok: true };
@@ -1035,11 +1040,11 @@ function createWindow() {
     });
 
     mainWindow.webContents.on('unresponsive', () => {
-        console.warn('Renderer became unresponsive.');
+        logger.warn('Renderer became unresponsive.');
     });
 
     mainWindow.webContents.on('render-process-gone', (_event, details) => {
-        console.error('Renderer process gone:', details.reason);
+        logger.error(`Renderer process gone: ${details.reason}`);
     });
 
     mainWindow.on('show', () => {

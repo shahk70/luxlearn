@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('api', {
      pauseAdjustments: (durationMs) => ipcRenderer.invoke('pause-adjustments', durationMs),
      resumeAdjustments: () => ipcRenderer.invoke('resume-adjustments'),
      getBrightnessHistory: (hours) => ipcRenderer.invoke('get-brightness-history', hours),
+     getLogHistory: () => ipcRenderer.invoke('get-log-history'),
      clearLearningLogs: () => ipcRenderer.invoke('clear-learning-logs'),
      exportLogsCsv: () => ipcRenderer.invoke('export-logs-csv'),
      onWeatherUpdate: (callback) => subscribe('weather-update', callback),

@@ -5,6 +5,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const MAX_LOGS_TO_SHOW = 20;
 
     let hasLogs = false;
+    const seenLogKeys = new Set();
 
     let lastAppliedConfig = null;
 
@@ -467,6 +468,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function updateLogsUI({ level, timestamp, message }) {
         if (!shouldShowLogLevel(level, currentLogLevel)) return;
+        // Live pushes can race the startup history fetch and deliver the same
+        // entry twice — skip exact duplicates.
+        const key = `${level}|${timestamp}|${message}`;
+        if (seenLogKeys.has(key)) return;
+        seenLogKeys.add(key);
+        if (seenLogKeys.size > 500) seenLogKeys.delete(seenLogKeys.values().next().value);
         requestUIUpdate(() => {
             if (!hasLogs) {
                 elems.logsList.innerHTML = '';
@@ -1557,6 +1564,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 startHistoryRefresh();
                 populateDeviceSelects();
                 elems.logsList.innerHTML = `<li><span>--:--</span> ${t('status.ready')}</li>`;
+                // Pull anything logged before the UI was ready (startup, GPS
+                // probe, …) so filters apply to the full session, not just
+                // entries that arrive after this point.
+                window.api.getLogHistory?.().then((history) => {
+                    if (Array.isArray(history)) history.forEach(updateLogsUI);
+                }).catch(() => {});
                 setTimeout(() => {
                     window.api.getOsSupport?.().then((osSupport) => {
                         if (osSupport) renderOsSupport(osSupport);

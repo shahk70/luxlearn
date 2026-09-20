@@ -1,6 +1,7 @@
 // signals.js
 
 const { execAsync, execPowerShell, PLATFORM, commandExists } = require('./core');
+const logger = require('./logger');
 const { cachedFn } = require('./cachedFn');
 const fs = require('fs/promises');
 const path = require('path');
@@ -373,7 +374,7 @@ async function getActiveWindowInfo() {
     cachedAt = now;
     return cachedInfo;
   } catch (error) {
-    console.error('Failed to get active window:', error.message);
+    logger.debug(`Active window read failed: ${error.message}`);
     return null;
   }
 }
@@ -413,7 +414,7 @@ async function screenAvgBrightness() {
     const primaryScreenSource = pickPrimarySource(sources);
 
     if (!primaryScreenSource) {
-      console.warn('No screen sources found.');
+      logger.warn('Screen sampling: no screen sources found.');
       return null;
     }
 
@@ -422,7 +423,7 @@ async function screenAvgBrightness() {
     const rawBuffer = image.toBitmap();
 
     if (!rawBuffer || rawBuffer.length === 0) {
-      console.error('Empty thumbnail buffer.');
+      logger.warn('Screen sampling: empty thumbnail buffer.');
       return null;
     }
 
@@ -439,7 +440,7 @@ async function screenAvgBrightness() {
     return Math.round((avg / 255 * 100) * 100) / 100;
 
   } catch (err) {
-    console.error('Error processing screenshot:', err);
+    logger.debug(`Screen sampling failed: ${err?.message || err}`);
     return null;
   }
 }

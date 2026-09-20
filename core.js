@@ -21,6 +21,7 @@ const ICON_PNG_PATH = path.join(__dirname, './app/images/icon.png');
 
 
 const fs = require('fs/promises');
+const logger = require('./logger');
 
 // --- Settings & Constants ---
 const DEFAULT_SUNRISE = { h: 7, m: 0 };
@@ -148,12 +149,12 @@ const loadJSON = async (filePath, defaultValue) => {
       return deepClone(defaultValue);
     }
     if (err instanceof SyntaxError) {
-      console.error(`Corrupt JSON at ${filePath}, restoring default.`);
+      logger.error(`Corrupt JSON at ${filePath}, restoring default.`);
       try {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
         await fs.writeFile(filePath, JSON.stringify(defaultValue, null, 2), 'utf8');
       } catch (writeErr) {
-        console.error(`Failed to heal corrupt JSON at ${filePath}:`, writeErr.message);
+        logger.error(`Failed to heal corrupt JSON at ${filePath}: ${writeErr.message}`);
       }
       return deepClone(defaultValue);
     }
@@ -168,7 +169,7 @@ const saveJSON = async (filePath, data, { compact = false } = {}) => {
     await fs.writeFile(tempPath, text, 'utf8');
     await fs.rename(tempPath, filePath);
   } catch (err) {
-    console.error(`Error saving JSON to ${filePath}:`, err.message);
+    logger.error(`Error saving JSON to ${filePath}: ${err.message}`);
   }
 };
 

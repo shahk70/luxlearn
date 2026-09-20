@@ -1,6 +1,7 @@
 // BrightnessManager.js
 
 const EventEmitter = require('events');
+const logger = require('./logger');
 const { loadJSON, saveJSON, retry, deepClone, learningConfigPath, brightnessLogsPath } = require('./core');
 const { getWebCamBrightness } = require('./webcam');
 const algo = require('./algorithm');
@@ -1531,12 +1532,14 @@ class BrightnessManager extends EventEmitter {
   }
 
   _emitLog(level, message, data = {}) {
-    this.emit('log', {
+    const entry = {
       level,
       message,
       timestamp: new Date().toISOString(),
       ...data,
-    });
+    };
+    logger.log(entry.level, entry.message);
+    this.emit('log', entry);
   }
 
   async _getSystemBrightness() {
@@ -1683,14 +1686,14 @@ class BrightnessManager extends EventEmitter {
               this.lastKnownBrightness = observed;
               await this._handleManualChange(previous, observed);
             } catch (err) {
-              console.warn('[BrightnessManager] Manual-change confirm failed:', err?.message || err);
+              this._emitLog('warn', `Manual-change confirm failed: ${err?.message || err}`);
             }
           }, CONFIG.ALGORITHM.MANUAL_CHANGE_CONFIRM_DELAY_MS);
         }
       }
       this.lastKnownBrightness = currentBrightness;
     } catch (error) {
-      console.warn('[BrightnessManager] _pollSystemState failed:', error?.message || error);
+      this._emitLog('warn', `System poll failed: ${error?.message || error}`);
     }
   }
 
