@@ -457,7 +457,7 @@ window.addEventListener('DOMContentLoaded', () => {
         requestUIUpdate(() => {
             const items = elems.logsList ? Array.from(elems.logsList.children) : [];
             for (const li of items) {
-                const level = (li.className.match(/log-level-(\\w+)/) || [])[1] || '';
+                const level = (li.className.match(/log-level-(\w+)/) || [])[1] || '';
                 const show = shouldShowLogLevel(level, currentLogLevel);
                 li.style.display = show ? '' : 'none';
             }
@@ -1509,6 +1509,7 @@ window.addEventListener('DOMContentLoaded', () => {
         currentLogLevel = select.value;
         elems.logLevelSelects.forEach(s => s && s !== select && (s.value = select.value));
         reapplyLogFilter();
+        debouncedSave();
     }));
     elems.inputs.adjustDuringLearning?.addEventListener('change', () => {
         const checked = elems.inputs.adjustDuringLearning.checked;
