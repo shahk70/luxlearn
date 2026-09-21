@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.8.4] - 2026-09-21
+
+### Fixed
+- **UI professionalism pass.**
+  Toggle knob no longer renders dark-on-dark in dark mode (stays white in
+  both themes); RTL layouts (Arabic/Persian) mirror correctly via logical
+  properties for the page-title accent bar, select chevron, city badge, log
+  timestamps, and copy buttons; update-banner actions wrap on narrow windows;
+  the location note is a proper row; the Help page gets lead-paragraph
+  hierarchy and readable measure; the sidebar active item gains an accent
+  indicator rail. (`app/style.scss`)
+
 ## [1.8.3] - 2026-09-20
 
 ### Fixed

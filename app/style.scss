@@ -1471,10 +1471,6 @@ select {
       background-color: var(--color-accent-soft);
     }
   }
-
-  .toggle .slider::before {
-    background-color: var(--color-surface-raised);
-  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -2511,6 +2507,299 @@ select {
 
   .definition-list {
     gap: var(--space-2) var(--space-4);
+  }
+}
+
+/* ----------------------------------- */
+/* 23. Action rows, activities refresh, card consistency, motion
+/* ----------------------------------- */
+
+/* 23.1 Profile + About actions stay on ONE line: no wrapping, scroll instead.
+   (Long translated labels + four buttons wrapped to two lines before.) */
+.card .card-footer.profile-actions,
+.about-hero .about-actions {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 6px;
+  }
+
+  .btn {
+    flex-shrink: 0;
+  }
+}
+
+/* 23.2 Activities: grouped panel with divided rows instead of loose lines. */
+.activity-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.activity-group .activity-row {
+  margin: 0;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+
+  .activity-info {
+    min-width: 0;
+  }
+
+  .activity-desc {
+    overflow-wrap: break-word;
+  }
+
+  .toggle-container {
+    flex-shrink: 0;
+  }
+}
+
+/* Micro-heading for the "Add Activity" block. */
+.activity-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-fg-muted);
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-3);
+}
+
+/* Preset chips: tappable buttons with lift. */
+.preset-chip {
+  background: var(--color-surface);
+  transition-property: background-color, color, border-color, box-shadow, transform;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+/* Add-activity form as a proper panel instead of loose wrapping inputs. */
+.activity-form {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-top: var(--space-3);
+
+  .btn {
+    flex-shrink: 0;
+  }
+}
+
+/* Custom activities as bordered rows matching the group panel. */
+.activities-list li {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+}
+
+.activities-list li:last-child {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* 23.3 Cards: one consistent treatment — tinted header, calm footer,
+   lift on hover everywhere (not just shadow or border alone). */
+.card {
+  transition-property: box-shadow, border-color, transform;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-header h3 {
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
+  }
+
+  .card-footer {
+    background: color-mix(in srgb, var(--color-surface) 55%, var(--color-bg));
+  }
+}
+
+/* 23.4 Motion: staggered card entrance per page visit + livelier buttons.
+   The global prefers-reduced-motion guard below neutralises all of this. */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Toggling .page display off/on restarts these, so every visit animates. */
+.page.active section.card {
+  animation: card-in 0.4s var(--ease-out) backwards;
+}
+
+.page.active section.card:nth-of-type(2) {
+  animation-delay: 0.06s;
+}
+
+.page.active section.card:nth-of-type(3) {
+  animation-delay: 0.12s;
+}
+
+.page.active section.card:nth-of-type(4) {
+  animation-delay: 0.18s;
+}
+
+.page.active section.card:nth-of-type(5) {
+  animation-delay: 0.24s;
+}
+
+.page.active section.card:nth-of-type(n+6) {
+  animation-delay: 0.3s;
+}
+
+.btn-secondary {
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+/* ----------------------------------- */
+/* 24. Professional audit fixes: dark toggle, RTL logic, banner/note
+/*     wrapping, sidebar rail, help readability
+/* ----------------------------------- */
+
+/* 24.1 Sidebar: active indicator rail (tint alone is easy to miss). */
+.sidebar li {
+  &.active {
+    &::before {
+      content: '';
+      position: absolute;
+      inset-inline-start: 0;
+      top: 0.55rem;
+      bottom: 0.55rem;
+      width: 3px;
+      border-radius: 3px;
+      background: var(--color-accent);
+    }
+  }
+}
+
+/* 24.2 Update banner: actions must wrap on narrow windows; text must shrink. */
+.update-banner {
+  #updateBannerText {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .update-banner-actions {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+
+    .btn {
+      flex-shrink: 0;
+    }
+  }
+}
+
+/* 24.3 Location note: proper row instead of right-aligned text + inline btn. */
+#page-settings {
+  .location-update-note {
+    @include flex(row, flex-end, center, var(--space-2));
+    flex-wrap: wrap;
+    width: 100%;
+    text-align: end;
+  }
+}
+
+/* 24.4 Help page: lead paragraph + readable rhythm (no i18n churn). */
+#page-help {
+  .card-body {
+    p {
+      max-width: 68ch;
+    }
+
+    p:first-child {
+      font-size: 0.95rem;
+      color: var(--color-fg);
+      font-weight: 500;
+    }
+
+    p + p {
+      margin-top: var(--space-4);
+    }
+  }
+}
+
+/* 24.5 RTL: logical properties so translated layouts mirror correctly. */
+.page > h1 {
+  padding-left: 0;
+  padding-inline-start: 0.9rem;
+
+  &::before {
+    left: auto;
+    inset-inline-start: 0;
+  }
+}
+
+select {
+  padding-right: 0.75rem;
+  padding-inline-end: 2rem;
+  background-position: right 0.7rem center;
+
+  [dir='rtl'] & {
+    background-position: left 0.7rem center;
+  }
+}
+
+#page-settings {
+  .location-row {
+    .city-badge {
+      margin-left: 0;
+      margin-inline-start: var(--space-2);
+    }
+  }
+}
+
+.recent-changes-list {
+  li {
+    span {
+      margin-right: 0;
+      margin-inline-end: var(--space-3);
+    }
+  }
+}
+
+#page-donate {
+  .copy-btn {
+    margin-left: 0;
+    margin-inline-start: var(--space-2);
   }
 }
 
