@@ -930,15 +930,25 @@ window.addEventListener('DOMContentLoaded', () => {
             toggleBtn.className = 'btn btn-secondary btn-sm';
             toggleBtn.textContent = a.enabled ? t('common.enabled') : t('common.disabled');
             toggleBtn.addEventListener('click', async () => {
-                await window.api.updateActivity(a.id, { enabled: !a.enabled });
-                loadActivities();
+                toggleBtn.disabled = true;
+                try {
+                    await window.api.updateActivity(a.id, { enabled: !a.enabled });
+                    loadActivities();
+                } finally {
+                    toggleBtn.disabled = false;
+                }
             });
             const delBtn = document.createElement('button');
             delBtn.className = 'btn btn-danger btn-sm';
             delBtn.textContent = t('common.delete');
             delBtn.addEventListener('click', async () => {
-                await window.api.deleteActivity(a.id);
-                loadActivities();
+                delBtn.disabled = true;
+                try {
+                    await window.api.deleteActivity(a.id);
+                    loadActivities();
+                } finally {
+                    delBtn.disabled = false;
+                }
             });
             actions.appendChild(toggleBtn);
             actions.appendChild(delBtn);

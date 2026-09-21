@@ -2515,10 +2515,13 @@ select {
 /* ----------------------------------- */
 
 /* 23.1 Profile + About actions stay on ONE line: no wrapping, scroll instead.
-   (Long translated labels + four buttons wrapped to two lines before.) */
+   (Long translated labels + four buttons wrapped to two lines before.)
+   NOTE: justify-content must be flex-start, not flex-end — an end-aligned
+   flex row with overflow clips its start and it can't be scrolled to. */
 .card .card-footer.profile-actions,
 .about-hero .about-actions {
   flex-wrap: nowrap;
+  justify-content: flex-start;
   overflow-x: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-strong) transparent;
@@ -2532,8 +2535,12 @@ select {
     border-radius: 6px;
   }
 
+  /* Compact so all four fit without scrolling at normal widths. */
   .btn {
-    flex-shrink: 0;
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
   }
 }
 
@@ -2573,12 +2580,13 @@ select {
   }
 }
 
-/* Micro-heading for the "Add Activity" block. */
+/* Micro-heading for the "Add Activity" block — same scale as the
+   settings/status micro-headings (0.72rem / 0.07em). */
 .activity-section-title {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--color-fg-muted);
   margin-top: var(--space-6);
   margin-bottom: var(--space-3);
@@ -2801,6 +2809,58 @@ select {
     margin-left: 0;
     margin-inline-start: var(--space-2);
   }
+}
+
+/* ----------------------------------- */
+/* 25. Evaluation fixes: heading scale, empty states, wrapping, motion
+/* ----------------------------------- */
+
+/* 25.1 Advanced-settings header uses h2 while every other card uses h3. */
+#advanced-settings {
+  .card-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+}
+
+/* 25.2 Empty custom-activities message is text, not a card — style it so. */
+.activities-list li:only-child {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: var(--space-3) 0;
+  margin-bottom: 0;
+  justify-content: center;
+  text-align: center;
+}
+
+/* 25.3 Warning rows: wrap on narrow cards instead of crushing the button. */
+.os-warning-item {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+
+  > span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+}
+
+/* 25.4 Long custom names must ellipsize instead of pushing actions out. */
+.activity-summary-name {
+  flex-shrink: 0;
+  max-width: 40%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 25.5 Learned-weight bars animate as values update. */
+.weight-fill {
+  transition: width 0.5s var(--ease-out);
 }
 
 /* ----------------------------------- */

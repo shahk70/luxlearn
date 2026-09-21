@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.8.5] - 2026-09-21
+
+### Fixed
+- **UI evaluation pass.**
+  Unified card-header and micro-heading scales across pages; the empty
+  activities message renders as plain text instead of a bordered card;
+  system-warning rows wrap on narrow cards; long custom activity names
+  ellipsize instead of pushing actions out; learned-weight bars animate on
+  update; activity enable/delete buttons disable while their request is in
+  flight; the update-check result is announced to screen readers.
+  (`app/style.scss`, `app/renderer.js`, `app/index.html`)
+
 ## [1.8.4] - 2026-09-21
 
 ### Fixed
