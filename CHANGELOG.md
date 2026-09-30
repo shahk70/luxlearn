@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.1] - 2026-09-30
+
+### Fixed
+- **Sleep/wake staleness.** After system resume, the first brightness cycle read pre-sleep power/night-light/ALS state, producing wrong predictions. Added `powerMonitor` resume handler that clears all signal caches (`signals.clearCaches()`, `BrightnessManager.invalidateCaches()`) so the first post-resume cycle re-probes fresh state. (`app/app.js`, `signals.js`, `BrightnessManager.js`, `cachedFn.js`)
+
+- **OpenCV analysis worker could wedge permanently after init timeout.** WASM init failure caused every subsequent frame to time out with no recovery; worker now exits on init timeout so the parent's existing `exit` handler respawns a fresh worker instead of dropping frames forever. (`webcamAnalysis_worker.js`)
+
+- **Background refresh while window hidden/minimized.** Renderer power/activity/history timers now skip when `document.hidden`, avoiding pointless work on minimized windows. All main/renderer intervals `unref()` so they can't delay app quit. (`app/renderer.js`, `BrightnessManager.js`)
+
+### Performance
+- `cachedFn` now exposes `.invalidate()` to drop cached values on resume, completing the cache-invalidation chain for `getPowerStatus`/`getNightLightState`. (`cachedFn.js`)
+
 ## [1.9.0] - 2026-09-30
 
 ### Fixed
