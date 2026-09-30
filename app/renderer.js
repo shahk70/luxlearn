@@ -1166,6 +1166,18 @@ window.addEventListener('DOMContentLoaded', () => {
         lastChartFetchAt = 0;
     }
 
+    function sizeHistoryCanvas(canvas) {
+        const cssW = canvas.clientWidth || 720;
+        const cssH = 200;
+        const targetW = Math.max(1, Math.round(cssW * (window.devicePixelRatio || 1)));
+        const targetH = Math.max(1, Math.round(cssH * (window.devicePixelRatio || 1)));
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+            canvas.width = targetW;
+            canvas.height = targetH;
+        }
+        return { cssW, cssH, dpr: canvas.width / cssW };
+    }
+
     function drawHistoryChart(hoverX = null) {
         const canvas = elems.historyCanvas;
         if (!canvas || !window.api?.getBrightnessHistory) return;
@@ -1194,13 +1206,7 @@ window.addEventListener('DOMContentLoaded', () => {
             elems.chartEmpty.hidden = true;
 
             const ctx = canvas.getContext('2d');
-            const dpr = window.devicePixelRatio || 1;
-            const cssW = canvas.clientWidth || 720;
-            const cssH = 200;
-            if (canvas.width !== cssW * dpr || canvas.height !== cssH * dpr) {
-                canvas.width = cssW * dpr;
-                canvas.height = cssH * dpr;
-            }
+            const { cssW, cssH, dpr } = sizeHistoryCanvas(canvas);
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, cssW, cssH);
 
@@ -1302,49 +1308,50 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        if (hoverX !== null && lastChartPoints && chartStaticCanvas) {
-            if (ensureChartGeometry()) return;
-            const ctx = canvas.getContext('2d');
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(chartStaticCanvas, 0, 0);
-            const dpr = dprOf(canvas);
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            const g = lastChartGeom;
-            const styles = getComputedStyle(document.documentElement);
-            drawChartHoverLayer(ctx, lastChartPoints, hoverX, {
-                padL: g.padL, padR: g.padR, w: g.w, h: g.h,
-                x: g.x, y: g.y,
-                styles,
-                lineColor: styles.getPropertyValue('--color-accent').trim() || '#3b82f6',
-                gridColor: styles.getPropertyValue('--color-border').trim() || '#e2e8f0',
-                textColor: styles.getPropertyValue('--color-fg-muted').trim() || '#64748b',
-                cssW: canvas.clientWidth || 720
-            });
-            return;
+        if (hoverX !== null && lastChartPoints && chartStaticCanvas && lastChartGeom) {
+            const expectedW = Math.max(1, Math.round((canvas.clientWidth || 720) * (window.devicePixelRatio || 1)));
+            if (canvas.width === expectedW && chartStaticCanvas.width === canvas.width) {
+                const ctx = canvas.getContext('2d');
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(chartStaticCanvas, 0, 0);
+                const dpr = canvas.width / (canvas.clientWidth || 720);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                const g = lastChartGeom;
+                const styles = getComputedStyle(document.documentElement);
+                drawChartHoverLayer(ctx, lastChartPoints, hoverX, {
+                    padL: g.padL, padR: g.padR, w: g.w, h: g.h,
+                    x: g.x, y: g.y,
+                    styles,
+                    lineColor: styles.getPropertyValue('--color-accent').trim() || '#3b82f6',
+                    gridColor: styles.getPropertyValue('--color-border').trim() || '#e2e8f0',
+                    textColor: styles.getPropertyValue('--color-fg-muted').trim() || '#64748b',
+                    cssW: canvas.clientWidth || 720
+                });
+                return;
+            }
         }
 
         if (hoverX === null && lastChartPoints && chartStaticCanvas && lastChartGeom
             && lastChartRange === historyRangeHours
             && (Date.now() - lastChartFetchAt) < CHART_CACHE_TTL_MS) {
-            const ctx = canvas.getContext('2d');
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(chartStaticCanvas, 0, 0);
-            const g = lastChartGeom;
-            if (elems.chartCaption) {
-                const last = lastChartPoints[lastChartPoints.length - 1];
-                setText(elems.chartCaption, t('chart.captionNewest', { n: lastChartPoints.length, b: last.b, time: timeFormat.format(new Date(last.t)) }));
+            const expectedW = Math.max(1, Math.round((canvas.clientWidth || 720) * (window.devicePixelRatio || 1)));
+            if (canvas.width === expectedW && chartStaticCanvas.width === canvas.width) {
+                const ctx = canvas.getContext('2d');
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(chartStaticCanvas, 0, 0);
+                const g = lastChartGeom;
+                if (elems.chartCaption) {
+                    const last = lastChartPoints[lastChartPoints.length - 1];
+                    setText(elems.chartCaption, t('chart.captionNewest', { n: lastChartPoints.length, b: last.b, time: timeFormat.format(new Date(last.t)) }));
+                }
+                return;
             }
-            return;
         }
 
         const requestedRange = historyRangeHours;
         window.api.getBrightnessHistory(historyRangeHours).then(render).catch(() => {});
-    }
-
-    function dprOf(canvas) {
-        return canvas.width / (canvas.clientWidth || canvas.width) || 1;
     }
 
     function drawChartHoverLayer(ctx, points, hoverX, { padL, padR, w, h, x, y, styles, lineColor, gridColor, textColor, cssW }) {
@@ -1486,17 +1493,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (document.getElementById('page-status')?.classList.contains('active') && !document.hidden) drawHistoryChart();
         }, 60000);
     };
-    const ensureChartGeometry = () => {
-        const canvas = elems.historyCanvas;
-        if (!canvas || !lastChartPoints?.length) return false;
-        const expectedW = Math.round((canvas.clientWidth || 720) * (window.devicePixelRatio || 1));
-        if (canvas.width !== expectedW || !chartStaticCanvas || chartStaticCanvas.width !== canvas.width) {
-            drawHistoryChart();
-            return true;
-        }
-        return false;
-    };
-
     let resizeRedraw = null;
     {
         let resizePending = false;
@@ -1506,6 +1502,8 @@ window.addEventListener('DOMContentLoaded', () => {
             resizePending = true;
             requestAnimationFrame(() => {
                 resizePending = false;
+                chartStaticCanvas = null;
+                lastChartGeom = null;
                 drawHistoryChart();
             });
         };

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.4] - 2026-09-30
+
+### Fixed
+- **Brightness History chart hovered after window resize produced garbled output.** On resize the canvas backing store changed size but the cached static bitmap and geometry still described the old size. The hover fast path's geometry check would call a full re-render without the hover coordinate, which hit the cache path, restored a wrong-sized bitmap, and returned — so the hover layer (crosshair + tooltip) never drew and the caption flickered. Fixed by unifying backing-store sizing in a single helper (`sizeHistoryCanvas`) that both render and hover paths use, and making hover/restore paths verify size equality before blitting the static layer. Window resize now explicitly invalidates the cached bitmap and geometry. (`app/renderer.js`)
+
 ## [1.9.3] - 2026-09-30
 
 ### Fixed
