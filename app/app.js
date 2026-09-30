@@ -215,13 +215,16 @@ async function initializeLogic() {
         brightnessManager.on('brightnessChanged', sendDynamicStatusUpdate);
         brightnessManager.on('readingsUpdated', sendDynamicStatusUpdate);
 
-        await brightnessManager.initialize();
         brightnessManager.updateWeatherInfo(state.weather);
         sendDynamicStatusUpdate();
 
         updateTrayMenu();
         updateLoginItemSettings();
         if (mainWindow) sendWeatherUpdateToUI();
+
+        brightnessManager.initialize().catch((err) => {
+            logger.error(`BrightnessManager init failed: ${err?.message || err}`);
+        });
 
         checkTaskbarPinRequest().then((result) => {
             if (result?.pinHint && mainWindow) sendToMainWindow('pin-hint', {});

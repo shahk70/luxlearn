@@ -1058,6 +1058,11 @@ class BrightnessManager extends EventEmitter {
     await this._loadState();
     this._updateLearningPhase();
 
+    if (this.settings.autoEnabled) this.start(5000);
+    const status = this.settings.autoEnabled ? 'ENABLED' : 'DISABLED';
+    this._emitLog('info', `Initialization complete. Auto-adjustment is ${status}.`);
+    this._emitLog('info', 'Resolving baseline brightness and sensor availability in background…');
+
     const [sysBrightness, alsAvailable] = await Promise.all([
       this._readStableBrightness(),
       hasAmbientLightSensor(),
@@ -1065,10 +1070,7 @@ class BrightnessManager extends EventEmitter {
     this.lastKnownBrightness = sysBrightness;
     this.ambientLightSensorAvailable = alsAvailable;
     this._emitLog('info', `Ambient light sensor: ${alsAvailable ? 'detected' : 'not detected'}.`);
-
-    if (this.settings.autoEnabled) this.start();
-    const status = this.settings.autoEnabled ? 'ENABLED' : 'DISABLED';
-    this._emitLog('info', `Initialization complete. Auto-adjustment is ${status}.`);
+    this.emit('readingsUpdated');
   }
 
   async _readStableBrightness(samples = 2, gapMs = 500) {

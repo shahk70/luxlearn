@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.3] - 2026-09-30
+
+### Fixed
+- **UI lag on startup while brightness baseline resolves.** `BrightnessManager.initialize()` blocked on `_readStableBrightness` (two system reads ~500 ms apart plus retry backoff) and the ALS probe before the window received its first status update, and the first adjustment cycle fired immediately on top of that — webcam capture, screen sampling, and PowerShell probes all competing with window paint on the same thread. Startup is now staged: the window, tray, settings, and weather UI render immediately; baseline resolution runs in the background and pushes a `readingsUpdated` status refresh when it lands; the first adjustment cycle is deferred 5 s so it no longer races first paint. (`BrightnessManager.js`, `app/app.js`)
+
 ## [1.9.2] - 2026-09-30
 
 ### Fixed
