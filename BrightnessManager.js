@@ -76,6 +76,8 @@ function batteryScarcity(percent) {
   if (typeof percent !== 'number' || !Number.isFinite(percent)) return null;
   return Math.min(1, Math.max(0, percent / CONFIG.ALGORITHM.BATTERY_SCARCITY_CEILING));
 }
+// Clamp the RATIO, not the input: legacy on-disk logs stored the raw
+// percentage, so values above 1 must still land at 1.
 
 function setFeatureValue(state, key, value) {
   switch (key) {
@@ -112,7 +114,6 @@ const {
 
 class BrightnessManager extends EventEmitter {
   #stats = new Map();
-  #featureKeys = ALL_FEATURES;
   #numericKeys = NUMERIC_FEATURES;
   #timeDecayRate = Math.log(2) / CONFIG.ALGORITHM.TIME_DECAY_HALF_LIFE_DAYS;
   #intervals = new Map();
@@ -141,6 +142,7 @@ class BrightnessManager extends EventEmitter {
   #cachedPowerInfo = null;
   #cachedNightLight = null;
   #ambientReadingsInFlight = null;
+  #cycleInFlight = false;
   #lastAmbientState = null;
   #lastAmbientStateAt = 0;
   #deferredFirstCycle = null;
@@ -516,6 +518,8 @@ class BrightnessManager extends EventEmitter {
       this._emitLog('info', 'Learning phase active with adjustments disabled – skipping cycle.');
       return;
     }
+    if (this.#cycleInFlight) return;
+    this.#cycleInFlight = true;
     if (isTriggeredRun) this._resetAdjustmentInterval();
 
     const cycleStart = Date.now();
@@ -791,6 +795,7 @@ class BrightnessManager extends EventEmitter {
       }, 500);
       if (this.#adjustingResetTimer.unref) this.#adjustingResetTimer.unref();
     }
+    this.#cycleInFlight = false;
   }
 
   async _verifyAppliedBrightness(target, attempts = 3, gapMs = 700) {
@@ -1202,7 +1207,8 @@ class BrightnessManager extends EventEmitter {
       if (!stat || stat.count < CONFIG.ALGORITHM.MIN_STAT_COUNT_FOR_DISTANCE) continue;
       const ambientVal = FEATURE_DEFINITIONS[key].accessor(ambientState);
       if (ambientVal == null) continue;
-      const std = stat.std < 1e-6 ? 1e-6 : stat.std;
+      if (stat.std < 1e-3) continue;
+      const std = stat.std;
       idxMap.push(i);
       ambientVec.push((ambientVal - stat.mean) / std);
     }
@@ -1245,8 +1251,9 @@ class BrightnessManager extends EventEmitter {
         const stat = statSnapshot[key];
         const logVal = FEATURE_DEFINITIONS[key].accessor(log);
         if (logVal == null) continue;
-        const std = stat.std < 1e-6 ? 1e-6 : stat.std;
-        dv.push(((logVal - stat.mean) / std) - ambientZ[i]);
+        if (stat.std < 1e-3) continue;
+      const std = stat.std;
+      dv.push(((logVal - stat.mean) / std) - ambientZ[i]);
         pi.push(i);
       }
       if (dv.length > 0) {
@@ -1271,7 +1278,8 @@ class BrightnessManager extends EventEmitter {
       const logVal = FEATURE_DEFINITIONS[key].accessor(log);
       const ambientVal = FEATURE_DEFINITIONS[key].accessor(ambientState);
       if (logVal == null || ambientVal == null) continue;
-      const std = stat.std < 1e-6 ? 1e-6 : stat.std;
+      if (stat.std < 1e-3) continue;
+      const std = stat.std;
       const diff = ((logVal - ambientVal) / std);
       sumSq += weight * (diff * diff);
     }
@@ -1470,6 +1478,12 @@ class BrightnessManager extends EventEmitter {
           }
         }
         this.logs = cleanLogs;
+        // Zero logs with an old startTime inflates the time-based confidence
+        // signal and exits learning mode with no data (e.g. user deleted
+        // brightnessLogs.json but not learningConfig.json).
+        if (this.logs.length === 0) {
+          this.learningConfig.startTime = Date.now();
+        }
         this._recalculateFeatureImportance();
       }
     } catch (error) {

@@ -357,6 +357,17 @@ p {
       color: var(--color-accent-strong);
       font-weight: 600;
       background: var(--color-accent-soft);
+
+      // Accent indicator rail on the inline-start edge of the active item.
+      &::before {
+        content: '';
+        position: absolute;
+        inset-block: 20%;
+        inset-inline-start: 0;
+        width: 2px;
+        border-radius: 0 2px 2px 0;
+        background: var(--color-accent-strong);
+      }
     }
   }
 }
@@ -2416,6 +2427,10 @@ select {
 
   .sidebar li.active {
     outline: 1px solid ButtonText;
+  }
+
+  .menu li.active::before {
+    background: ButtonText;
   }
 }
 

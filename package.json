@@ -1,6 +1,6 @@
 {
   "name": "luxlearn",
-  "version": "1.8.5",
+  "version": "1.9.0",
   "private": true,
   "description": "LuxLearn — your screen learns the light around you. A cross-platform Electron app that blends ambient light, webcam, screen content and time of day into brightness that feels natural.",
   "license": "UNLICENSED",
@@ -39,8 +39,7 @@
     "dist:win": "npm run build:css && electron-builder --win --x64",
     "dist:mac": "npm run build:css && electron-builder --mac",
     "dist:linux": "npm run build:css && electron-builder --linux",
-    "dist": "npm run build:css && electron-builder -wml",
-    "store:win": "npm run build:css && electron-builder --win --x64 appx"
+    "dist": "npm run build:css && electron-builder -wml"
   },
   "dependencies": {
     "@techstark/opencv-js": "^4.12.0-release.1",
@@ -53,7 +52,7 @@
     "suncalc": "^1.9.0"
   },
   "devDependencies": {
-    "electron": "^36.8.0",
+    "electron": "^37.10.3",
     "electron-builder": "^25.0.0",
     "sass": "^1.77.8"
   },

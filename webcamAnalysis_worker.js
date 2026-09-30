@@ -49,7 +49,7 @@ function waitForCvReady() {
     return Promise.resolve();
   }
   if (!cvReadyPromise) {
-    cvReadyPromise = new Promise((resolve) => {
+    cvReadyPromise = new Promise((resolve, reject) => {
       const previousHook = cv['onRuntimeInitialized'];
       cv['onRuntimeInitialized'] = () => {
         if (typeof previousHook === 'function') {
@@ -58,6 +58,9 @@ function waitForCvReady() {
         cvLoaded = true;
         resolve();
       };
+      setTimeout(() => {
+        if (!cvLoaded) reject(new Error('OpenCV init timeout'));
+      }, 10000);
     });
   }
   return cvReadyPromise;
@@ -70,7 +73,6 @@ function getFaceClassifier() {
   if (!faceClassifier) {
     const searchPaths = [
       path.resolve(__dirname, HAAR_CASCADE_FILE),
-      path.resolve(process.cwd(), HAAR_CASCADE_FILE),
     ];
 
     const xmlPath = searchPaths.find(p => fs.existsSync(p));
@@ -532,8 +534,14 @@ function analyzeFrame({ buffer, width, height, detectFaces }) {
 function decodeBmpToRgba(imageBuffer) {
   const decoded = bmp.decode(Buffer.from(imageBuffer));
   const { width, height } = decoded;
+  // Reject absurd dimensions before allocating — a corrupt or hostile BMP
+  // header could otherwise request a multi-GB buffer.
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 || width > 16384 || height > 16384) {
+    throw new Error(`Invalid BMP dimensions: ${width}x${height}`);
+  }
   const src = decoded.data;
   const rgba = new Uint8ClampedArray(width * height * 4);
+  // bmp-js decodes 24bpp BMPs as [0,B,G,R] per pixel — reorder to RGBA.
   for (let i = 0; i < rgba.length; i += 4) {
     rgba[i] = src[i + 3];
     rgba[i + 1] = src[i + 2];
@@ -577,8 +585,8 @@ function demosaicRaw(buffer, width, height, pattern, bitDepth = 8) {
 function bayerChannelMeans(buffer, width, height, pattern, bitDepth = 8) {
   const map = {
     rggb: { 0: 'r', 1: 'g1', 2: 'g2', 3: 'b' },
-    grbg: { 0: 'g1', 1: 'b', 2: 'r', 3: 'g2' },
-    gbrg: { 0: 'g1', 1: 'r', 2: 'b', 3: 'g2' },
+    grbg: { 0: 'g1', 1: 'r', 2: 'b', 3: 'g2' },
+    gbrg: { 0: 'g1', 1: 'b', 2: 'r', 3: 'g2' },
     bggr: { 0: 'b', 1: 'g1', 2: 'g2', 3: 'r' },
   };
   const siteMap = map[pattern] || map.rggb;

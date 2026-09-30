@@ -17,7 +17,6 @@ license.
 | Package | Purpose | License |
 |---|---|---|
 | [electron](https://www.npmjs.com/package/electron) | Desktop app runtime | MIT |
-| [electron-packager](https://www.npmjs.com/package/electron-packager) | Build distributables | BSD-2-Clause |
 | [sass](https://www.npmjs.com/package/sass) | Compiles `app/style.scss` | MIT |
 | [dotenv](https://www.npmjs.com/package/dotenv) | Loads `.env` | BSD-2-Clause |
 | [@techstark/opencv-js](https://www.npmjs.com/package/@techstark/opencv-js) | Face detection (webcam worker) | Apache-2.0 |
@@ -34,9 +33,9 @@ time this file was written.
 
 ## External services called at runtime
 
-- [ipapi.co](https://ipapi.co/) — IP-based geolocation fallback.
+- [ip-api.com](https://ip-api.com/) — IP-based geolocation fallback.
 - [WeatherAPI.com](https://www.weatherapi.com/) — sunrise/sunset + cloud
-  cover, only if you configure `WEATHERAPI_KEY`.
+  cover (bundled public keys tried first; no key required).
 - [GitHub REST API](https://docs.github.com/en/rest) — used only to check
   the latest release tag for the in-app update notice.
 

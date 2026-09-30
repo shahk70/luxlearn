@@ -131,6 +131,12 @@ function sanitizeSettings(input, base = defaultSettings) {
     ? src.activities
     : fallbackActivities;
 
+  for (const key of Object.keys(src)) {
+    if (!(key in SETTINGS_SCHEMA) && key !== 'custom') {
+      logger.warn(`Ignoring unknown setting "${key}" (not in schema) — it will be dropped on save.`);
+    }
+  }
+
   return out;
 }
 
@@ -149,7 +155,13 @@ const loadJSON = async (filePath, defaultValue) => {
       return deepClone(defaultValue);
     }
     if (err instanceof SyntaxError) {
-      logger.error(`Corrupt JSON at ${filePath}, restoring default.`);
+      logger.error(`Corrupt JSON at ${filePath}, attempting partial recovery...`);
+      try {
+        const data = await fs.readFile(filePath, 'utf8');
+        const backupPath = `${filePath}.corrupt.${Date.now()}`;
+        await fs.writeFile(backupPath, data, 'utf8');
+        logger.warn(`Corrupt file backed up to ${backupPath}`);
+      } catch { /* ignore backup failure */ }
       try {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
         await fs.writeFile(filePath, JSON.stringify(defaultValue, null, 2), 'utf8');
@@ -163,13 +175,14 @@ const loadJSON = async (filePath, defaultValue) => {
 };
 
 const saveJSON = async (filePath, data, { compact = false } = {}) => {
+  const tempPath = `${filePath}.tmp`;
   try {
-    const tempPath = `${filePath}.tmp`;
     const text = compact ? JSON.stringify(data) : JSON.stringify(data, null, 2);
     await fs.writeFile(tempPath, text, 'utf8');
     await fs.rename(tempPath, filePath);
   } catch (err) {
     logger.error(`Error saving JSON to ${filePath}: ${err.message}`);
+    try { await fs.unlink(tempPath); } catch { /* already gone */ }
   }
 };
 

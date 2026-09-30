@@ -525,6 +525,7 @@ window.addEventListener('DOMContentLoaded', () => {
             adjustDuringLearning: elems.inputs.adjustDuringLearning?.checked ?? true,
             cameraDevice: cameraSelect?.value ?? prev.cameraDevice ?? '',
             targetDisplay: displaySelect?.value ?? prev.targetDisplay ?? 'all',
+            applyToAllDisplays: (displaySelect?.value ?? prev.targetDisplay ?? 'all') === 'all',
             logLevel: elems.logLevelSelects.find(s => s?.value)?.value ?? prev.logLevel ?? 'normal',
         };
         for (const { id, key, def } of NUMERIC_FIELDS) {

@@ -84,15 +84,16 @@ async function linuxGetPowerStatus() {
 }
 
 const POWER_CACHE_TTL_MS = 60 * 1000;
+const cachedPowerStatus = cachedFn(async () => {
+  switch (PLATFORM) {
+    case 'win32': return await winGetPowerStatus();
+    case 'darwin': return await macGetPowerStatus();
+    case 'linux': return await linuxGetPowerStatus();
+    default: return null;
+  }
+}, POWER_CACHE_TTL_MS);
 async function getPowerStatus() {
-  return cachedFn(async () => {
-    switch (PLATFORM) {
-      case 'win32': return await winGetPowerStatus();
-      case 'darwin': return await macGetPowerStatus();
-      case 'linux': return await linuxGetPowerStatus();
-      default: return null;
-    }
-  }, POWER_CACHE_TTL_MS)();
+  return cachedPowerStatus();
 }
 
 
@@ -158,18 +159,17 @@ async function isRedshiftishRunning() {
 }
 
 const NIGHT_LIGHT_CACHE_TTL_MS = 60 * 1000;
+const cachedNightLightState = cachedFn(async () => {
+  switch (PLATFORM) {
+    case 'win32': return await winGetNightLight();
+    case 'darwin': return await macGetNightLight();
+    case 'linux': return await linuxGetNightLight();
+    default: return null;
+  }
+}, NIGHT_LIGHT_CACHE_TTL_MS);
 async function getNightLightState() {
-  return cachedFn(async () => {
-    switch (PLATFORM) {
-      case 'win32': return await winGetNightLight();
-      case 'darwin': return await macGetNightLight();
-      case 'linux': return await linuxGetNightLight();
-      default: return null;
-    }
-  }, NIGHT_LIGHT_CACHE_TTL_MS)();
+  return cachedNightLightState();
 }
-
-
 
 let resolvedAvailability;
 let cachedIioDevicePath;
@@ -295,8 +295,8 @@ const ALS_AVAILABILITY_TTL_MS = 10 * 60 * 1000;
 
 async function hasAmbientLightSensor() {
   const now = Date.now();
-  if (resolvedAvailability !== undefined && (now - resolvedAvailabilityCheckedAt) < ALS_AVAILABILITY_TTL_MS) {
-    return resolvedAvailability;
+  if (resolvedAvailability === true && (now - resolvedAvailabilityCheckedAt) < ALS_AVAILABILITY_TTL_MS) {
+    return true;
   }
   const lux = await readAmbientLightLux();
   resolvedAvailability = lux !== null;
@@ -334,7 +334,8 @@ function detectDeviceProfile() {
   const isArm = arch === 'arm64';
 
   const weak = isArm
-    ? (cores > 0 && cores <= 2 && totalMemGB > 0 && totalMemGB <= 4)
+    ? (cores > 0 && cores <= 4) ||
+      (totalMemGB > 0 && totalMemGB <= 4)
     : (cores > 0 && cores <= 2) ||
       (speedMHz > 0 && speedMHz < 2000) ||
       (totalMemGB > 0 && totalMemGB <= 4);
@@ -643,7 +644,7 @@ async function winGet() {
   if (_backendOk(winCandidateStatus, 'wmi')) return winGetWmi();
   if (_backendOk(winCandidateStatus, 'cim')) return winGetCim();
   if (_backendOk(winCandidateStatus, 'ddc')) return winGetDdc();
-  const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id) || _backendFailed(winCandidateStatus, id));
+  const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id));
   if (unprobed.length === 0) throw winUnsupportedError();
   const fns = { wmi: () => winGetWmi(), cim: () => winGetCim(), ddc: () => winGetDdc() };
   for (const id of unprobed) {
@@ -677,7 +678,7 @@ async function winSet(value, opts = {}) {
     await winSetDdc(clamped, display);
     return;
   }
-  const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id) || _backendFailed(winCandidateStatus, id));
+  const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id));
   if (unprobed.length === 0) throw winUnsupportedError();
   for (const id of unprobed) {
     try {
@@ -850,7 +851,11 @@ async function getXrandrOutputs() {
 
 function parseXrandrTargetDisplay(display) {
   if (display == null || display === 'all' || display === '') return null;
-  return String(display);
+  // Display identifiers flow into shell commands (brightnessctl, ddcutil,
+  // xrandr). Reject anything outside the safe identifier charset so a
+  // crafted settings value can't break out of the command.
+  const id = String(display);
+  return /^[A-Za-z0-9._:\/-]{1,64}$/.test(id) ? id : null;
 }
 
 async function readXrandrBrightness(output) {
@@ -913,8 +918,9 @@ async function linuxGet() {
   try {
     if (backend === 'brightnessctl') {
       const { stdout } = await execAsync('brightnessctl -m get');
+      // -m prints: device,type,current,max,percentage — take field 4.
       const parts = stdout.trim().split(',');
-      const percentStr = parts[parts.length - 1];
+      const percentStr = parts[4];
       if (percentStr && percentStr.includes('%')) return parseInt(percentStr, 10);
       const [{ stdout: cur }, { stdout: max }] = await Promise.all([
         execAsync('brightnessctl get'),
@@ -955,8 +961,10 @@ async function linuxSet(value, opts = {}) {
 
   try {
     if (backend === 'brightnessctl') {
+      // target is already validated by parseXrandrTargetDisplay
+      // (safe identifier charset), so it interpolates safely.
       if (target && target !== 'all') {
-        await execAsync(`brightnessctl --device='${target.replace(/'/g, "'\\''")}' set ${clamped}%`);
+        await execAsync(`brightnessctl --device='${target}' set ${clamped}%`);
       } else {
         await execAsync(`brightnessctl set ${clamped}%`);
       }

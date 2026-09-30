@@ -49,9 +49,6 @@ try {
             source: 'electron-updater',
         });
     });
-    autoUpdater.on('update-not-available', () => {
-        sendToMainWindow('update-none', { checkedAt: Date.now() });
-    });
     autoUpdater.on('error', (err) => {
         logger.warn(`Auto-update error: ${err && err.message}`);
     });
@@ -262,9 +259,12 @@ async function initializeLogic() {
     }
 }
 
+let weatherRefreshInFlight = null;
 async function refreshWeatherData(isInitialLoad = false) {
     const lastUpdated = state.weather?.lastUpdated ? new Date(state.weather.lastUpdated).getTime() : 0;
     if (!isInitialLoad && Date.now() - lastUpdated < 3600000) return;
+    if (weatherRefreshInFlight) return weatherRefreshInFlight;
+    weatherRefreshInFlight = (async () => {
 
     try {
         const newWeatherInfo = await updateDailyWeatherInfo(state.settings);
@@ -285,6 +285,7 @@ async function refreshWeatherData(isInitialLoad = false) {
     } catch (error) {
         logger.error(`Weather refresh failed: ${error?.message || error}`);
     }
+    })().finally(() => { weatherRefreshInFlight = null; });
 }
 
 function sendWeatherUpdateToUI() {
@@ -386,13 +387,14 @@ async function setLinuxAutostart(enabled) {
         }
         await fs.mkdir(autostartDir, { recursive: true });
         const execPath = process.env.APPIMAGE || process.execPath;
+        const escapedExecPath = execPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         const contents = [
             '[Desktop Entry]',
             'Type=Application',
             'Version=1.0',
             'Name=LuxLearn',
             'Comment=Automatic screen brightness',
-            `Exec=${execPath} --hidden`,
+            `Exec="${escapedExecPath}" --hidden`,
             'X-GNOME-Autostart-enabled=true',
             'NoDisplay=true',
             '',
@@ -767,6 +769,27 @@ ipcMain.handle('about:download-update', async () => {
         const result = await new Promise((resolve, reject) => {
             const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes — installer is ~98 MB
             let settled = false;
+            const onDownloaded = () => { if (!settled) { settled = true; resolve({ success: true }); } };
+            const onError = (err) => { if (!settled) { settled = true; reject(err); } };
+            autoUpdater.once('update-downloaded', onDownloaded);
+            autoUpdater.once('error', onError);
+            const timeout = setTimeout(() => {
+                if (!settled) {
+                    settled = true;
+                    autoUpdater.removeListener('update-downloaded', onDownloaded);
+                    autoUpdater.removeListener('error', onError);
+                    reject(new Error('download-timeout'));
+                }
+            }, TIMEOUT_MS);
+            autoUpdater.downloadUpdate().catch((err) => {
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timeout);
+                    autoUpdater.removeListener('update-downloaded', onDownloaded);
+                    autoUpdater.removeListener('error', onError);
+                    reject(err);
+                }
+            });
 
             const timer = setTimeout(() => {
                 if (settled) return;
@@ -978,12 +1001,23 @@ ipcMain.handle('open-os-settings', (_, target) => {
     }
     return { success: false, error: 'Unknown settings target' };
 });
+const EXTERNAL_URL_ALLOWLIST = new Set(['github.com', 'www.github.com', 'weatherapi.com', 'open-meteo.com']);
 ipcMain.handle('open-external', (_, url) => {
-    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
-        shell.openExternal(url);
-        return { success: true };
+    if (typeof url !== 'string') return { success: false, error: 'Invalid URL' };
+    let parsed;
+    try {
+        parsed = new URL(url);
+    } catch {
+        return { success: false, error: 'Malformed URL' };
     }
-    return { success: false, error: 'Blocked non-http(s) URL' };
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        return { success: false, error: 'Blocked non-http(s) URL' };
+    }
+    if (!EXTERNAL_URL_ALLOWLIST.has(parsed.hostname)) {
+        return { success: false, error: `Blocked host: ${parsed.hostname}` };
+    }
+    shell.openExternal(parsed.href);
+    return { success: true };
 });
 ipcMain.handle('refresh-location', async () => {
     // Return immediately so renderer stays responsive.

@@ -76,6 +76,7 @@ function zeroMatrix(rows, cols = rows) {
   return out;
 }
 
+
 function identityMatrix(n) {
   const out = zeroMatrix(n, n);
   for (let i = 0; i < n; i++) out[i][i] = 1;

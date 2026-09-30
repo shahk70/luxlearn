@@ -151,16 +151,13 @@ ready to download. Nothing is built on your machine — your PC stays clean.
 
 ## Updates
 
-The update checker (inlined in `app/app.js`) polls the GitHub Releases API
-once a day for a newer tag than the running app's `package.json` version,
-and shows a dismissible banner in-app with a link to the release — it does
-**not** auto-download or auto-install anything. It is pre-configured for
-`shahk70/luxlearn` (`REPO_OWNER` / `REPO_NAME` at the top of `app/app.js`).
-
-If you'd rather have real auto-install updates, swap this module for
-[`electron-updater`](https://www.electron.build/auto-update) +
-`electron-builder`; that requires setting up code signing and a configured
-publish target, which is why it isn't the default here.
+The app uses [`electron-updater`](https://www.electron.build/auto-update) to
+check GitHub Releases once a day for a newer tag than the running app's
+`package.json` version, and shows a dismissible banner in-app with a link to
+the release. By default updates are downloaded but only installed on quit
+(`autoInstallOnAppQuit = true`). You can trigger an immediate download from
+the About page. It is pre-configured for `shahk70/luxlearn` (see `REPO_OWNER`
+/ `REPO_NAME` in `app/app.js`).
 
 To make the update checker actually have something to find, push a `v*` tag
 as shown in [Downloading a published release](#downloading-a-published-release-no-build-needed)
@@ -172,7 +169,7 @@ Release automatically.
 All UI assets (`app/images/icon.ico`, `icon.png`, `donate.jpg`) are included.
 For macOS packaging you additionally need `app/images/icon.icns` — generate
 one from a 1024px PNG once with e.g. `npx icon-gen` before running
-`npm run dist:mac`.
+`npm run dist:mac` (not `package:mac`).
 
 ## Project structure
 
@@ -199,9 +196,9 @@ weather.js                geolocation + sunrise/sunset/cloud data
 Ambient-light/webcam/screen samples and the logs derived from them are
 stored locally only (Electron's `userData` folder, via `core.js`) and are
 never uploaded anywhere. The only outbound network calls are:
-IP geolocation (`ipapi.co`), sunrise/sunset + cloud cover
-(`api.weatherapi.com`, only if you set a key), and the update check
-(`api.github.com`).
+IP geolocation (`ip-api.com`), sunrise/sunset + cloud cover
+(`api.weatherapi.com`, bundled public keys tried first — no key required),
+and the update check (`api.github.com`).
 
 ## Contributing
 
@@ -216,7 +213,7 @@ public git history should be considered compromised.
 
 ## License
 
-[MIT](LICENSE).
+Proprietary — All Rights Reserved. See [LICENSE](LICENSE).
 
 ## Third-party notices
 

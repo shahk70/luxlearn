@@ -184,7 +184,7 @@ async function findLocation(forceRefresh = false) {
         lastGpsProbeTime = now;
         try {
             logger.debug('Probing Windows location sensor…');
-            const output = await execPowerShell(PS_COMMAND, null);
+            const output = await execPowerShell(PS_COMMAND, 25000);
             const data = JSON.parse(output);
             const lat = Number(data?.lat);
             const lon = Number(data?.lon);
@@ -252,7 +252,12 @@ function resetLocationCache() {
 
 async function refreshLocationNow() {
     resetLocationCache();
-    return findLocation(true);
+    const loc = await findLocation(true);
+    // If the forced probe yielded no GPS fix, the just-written IP cache (and
+    // the probe cooldown) would blind the follow-up weather refresh. Reset
+    // the cooldown so it re-probes the sensor instead of trusting IP.
+    if (memCache.source !== 'gps') lastGpsProbeTime = 0;
+    return loc;
 }
 
 function getTimeZoneOffsetMs(timeZone, date) {

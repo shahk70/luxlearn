@@ -29,8 +29,7 @@ function resolveCommandCamPath() {
       try { return path.join(path.dirname(require.resolve('node-webcam/package.json')), 'src', 'bindings', 'CommandCam', 'CommandCam.exe'); }
       catch { return null; }
     })(),
-    path.resolve(__dirname, 'bin', 'CommandCam.exe'),
-    path.join(process.cwd(), 'CommandCam.exe')
+    path.resolve(__dirname, 'bin', 'CommandCam.exe')
   ].filter(Boolean);
   return possiblePaths.find(p => fs.existsSync(p)) || null;
 }

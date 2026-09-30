@@ -87,6 +87,8 @@ jobs:
           START=$(grep -n "^## \[${TAG#v}\]" CHANGELOG.md | head -1 | cut -d: -f1)
           if [ -z "${START}" ]; then
             echo "No changelog section for ${TAG}, using auto-generated notes"
+            # Must exist for body_path below; an absent file fails the release.
+            printf '# %s\n\nSee the commit history for details.\n' "${TAG}" > /tmp/RELEASE_BODY.md
             exit 0
           fi
           END=$(awk -v start="$((START+1))" 'NR > start && /^## / { print NR; exit }' CHANGELOG.md)
@@ -97,7 +99,7 @@ jobs:
           echo "body=$(wc -c < /tmp/RELEASE_BODY.md) bytes"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.0.8
         with:
           files: |
             artifacts/**/*.exe
@@ -108,4 +110,4 @@ jobs:
             artifacts/**/*.blockmap
             artifacts/**/latest*.yml
           body_path: /tmp/RELEASE_BODY.md
-          generate_release_notes: true
+          generate_release_notes: false

@@ -1,5 +1,82 @@
 # Changelog
 
+## [1.9.0] - 2026-09-30
+
+### Fixed
+- **Backend retry storm on desktop PCs without brightness backend.**
+  `winGet()` retried failed WMI/CIM/DDC backends every poll cycle; now only truly-unprobed backends are tried, and failures stay latched for the 5-min re-probe window. (`signals.js`)
+
+- **OpenCV analysis worker could wedge permanently.**
+  WASM init failure caused every subsequent frame to time out with no recovery; added a 10 s init timeout so the parent process respawns a fresh worker. (`webcamAnalysis_worker.js`)
+
+- **GPS PowerShell probe had no outer timeout.**
+  Only bounded by an in-script 20 s loop; a hung `Add-Type` or profile load blocked the weather cycle indefinitely. Now enforced by a hard 25 s exec timeout. (`weather.js`)
+
+- **Bayer channel maps wrong for GRBG/GBRG patterns.**
+  R/B channels swapped on common Sony IMX sensors, corrupting raw-green lux estimates and CCT. Corrected against verified 2×2 phase. (`webcamAnalysis_worker.js`)
+
+- **Corrupt JSON files overwrote all valid data.**
+  `loadJSON` wrote the default value in place on any SyntaxError, erasing learning history; now backs up the corrupt file to `.corrupt.<timestamp>` first. `saveJSON` also cleans its `.tmp` on failure. (`core.js`)
+
+- **Ambient light sensor availability cached `true` for 10 min.**
+  Sensor loss (driver crash, USB unplug, lid close) left a 10-min blind window where webcam fallback was skipped. Now only `true` is cached; `false` re-probes every call. (`signals.js`)
+
+- **Learning config/log mismatch inflated confidence.**
+  Deleting `brightnessLogs.json` but not `learningConfig.json` produced zero logs with an old `startTime`, causing immediate exit from learning mode with no data. Now resets `startTime` when logs come back empty. (`BrightnessManager.js`)
+
+- **Location refresh race returned IP instead of GPS.**
+  User-triggered GPS probe timed out, fell back to IP; the follow-up weather refresh saw a fresh IP cache and skipped re-probing GPS. Now resets the GPS cooldown so the forced probe actually runs. (`weather.js`)
+
+- **Zero-variance features dominated distance metric.**
+  A feature whose std floor hit 1e-6 made tiny differences overwhelm the log-distance calculation; now excluded when `std < 1e-3`. (`BrightnessManager.js`)
+
+- **Adjustment cycles could overlap.**
+  No in-flight guard on `_runAutoAdjustmentCycle`; cycles exceeding `autoBrightMin` duplicated O(logs × features) work on the main thread. Added `#cycleInFlight` guard. (`BrightnessManager.js`)
+
+- **Linux brightnessctl parsing used wrong field.**
+  `brightnessctl -m get` outputs `device,type,current,max,percentage`; the code took the last field (which happens to be percentage) but now explicitly uses field 4 for clarity and robustness. (`signals.js`)
+
+- **Command injection via display identifiers.**
+  `brightnessctl --device`, `ddcutil --display`, `xrandr --output` interpolated user-controlled settings. Added identifier validation (`^[A-Za-z0-9._:\/-]{1,64}$`) and removed manual quote escaping. (`signals.js`)
+
+- **`.desktop` Exec line unquoted.**
+  Linux autostart entry could break on APPIMAGE paths with spaces; now escaped and double-quoted. (`app/app.js`)
+
+- **`open-external` IPC accepted arbitrary https URLs.**
+  Now restricted to an allowlist: `github.com`, `weatherapi.com`, `open-meteo.com`. (`app/app.js`)
+
+- **BMP dimension cap prevents multi-GB allocation.**
+  A corrupt or hostile BMP header could request an absurd buffer before decode; now rejects dimensions > 16384 or ≤ 0. (`webcamAnalysis_worker.js`)
+
+- **Weather refresh could overlap API calls.**
+  Hourly interval didn't dedupe; added `weatherRefreshInFlight` guard. (`app/app.js`)
+
+- **`about:download-update` listeners leaked on timeout.**
+  `.once` listeners now removed on timeout/error paths. (`app/app.js`)
+
+- **Upgraded Electron 36 → 37.10.3.**
+  Electron 36 past supported window; 37 brings Chromium 127 security fixes. (`package.json`)
+
+- **Removed dead code.**
+  `#featureKeys` (never read), `identityMatrix` (exported but unused), `update-none` IPC (emitted but never received), redundant `store:win` script. (`BrightnessManager.js`, `algorithm.js`, `app/app.js`, `package.json`)
+
+- **Per-display brightness dropdown now wired.**
+  Selecting a specific display in Settings writes `applyToAllDisplays: false`; previously it was inert and always applied to all displays. (`app/renderer.js`, `core.js`)
+
+- **`sanitizeSettings` warns instead of silently dropping unknown keys.**
+  Upgrades and manual edits no longer lose unrecognized settings silently. (`core.js`)
+
+- **Sidebar accent indicator rail implemented.**
+  Matches the 1.8.4 changelog promise; also rendered in forced-colors mode. (`app/style.scss`)
+
+### Changed
+- **CI uses `npm ci` for reproducible builds.** (`.github/workflows/ci.yml`)
+- **Release workflow guarded:** `body_path` file created even when changelog section missing; `generate_release_notes: false`; `softprops/action-gh-release` pinned to `@v2.0.8`. (`.github/workflows/release.yml`)
+- **Documentation corrections:** license, update behavior, IP geolocation provider, bundled WeatherAPI key wording, macOS packaging script name. (`README.md`, `THIRD_PARTY_NOTICES.md`)
+
+### Security
+- All exec-with-interpolation paths hardened; Electron upgraded; WeatherAPI bundled pool retained (out-of-the-box behavior) with documented shared-quota risk in `SECURITY.md`.
+
 ## [1.8.5] - 2026-09-21
 
 ### Fixed
