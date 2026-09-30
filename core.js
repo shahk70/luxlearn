@@ -1,5 +1,4 @@
-// core.js — shared foundation: paths, JSON persistence, settings schema, exec helpers.
-
+// core.js
 
 const path = require('path');
 
@@ -222,9 +221,6 @@ function execPowerShell(command, timeoutMs = DEFAULT_PS_TIMEOUT_MS) {
     const controller = new AbortController();
     let settled = false;
 
-    // GPS calls pass an explicit null to skip the artificial timeout entirely —
-    // the PowerShell loop self-terminates (12s Ready check) and either returns
-    // coordinates or throws, so it never runs indefinitely.
     let timeout = null;
     if (typeof timeoutMs === 'number' && timeoutMs > 0) {
       timeout = setTimeout(() => {
@@ -260,12 +256,8 @@ async function commandExists(cmd) {
 }
 
 module.exports = {
-  // paths
   learningConfigPath, brightnessLogsPath, settingsPath, ICON_PATH, ICON_PNG_PATH, WEATHER_JSON_PATH,
-  // settings
   defaultSettings, DEFAULT_SUNRISE, DEFAULT_SUNSET, sanitizeSettings, deepFreeze,
-  // persistence / flow
   loadJSON, saveJSON, retry, deepClone,
-  // exec helpers
   PLATFORM, execAsync, execPowerShell, commandExists,
 };

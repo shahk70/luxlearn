@@ -76,8 +76,6 @@ function batteryScarcity(percent) {
   if (typeof percent !== 'number' || !Number.isFinite(percent)) return null;
   return Math.min(1, Math.max(0, percent / CONFIG.ALGORITHM.BATTERY_SCARCITY_CEILING));
 }
-// Clamp the RATIO, not the input: legacy on-disk logs stored the raw
-// percentage, so values above 1 must still land at 1.
 
 function setFeatureValue(state, key, value) {
   switch (key) {
@@ -97,7 +95,6 @@ const MAD_NOISE_MULTIPLIER = 1.0;
 const MIN_SAMPLES_FOR_NOISE_ESTIMATE = 5;
 const FEATURE_EPS_CEILING = 0.5;
 const AMBIENT_MEDIAN_WINDOW = 3;
-// Time always advances — treating its drift as noise freezes dayLight/sin/cos at stale values.
 const TIME_FEATURE_KEYS = new Set(['dayLight', 'timeSin', 'timeCos']);
 const LOW_BATTERY_SUSPECT_PCT = 20;
 
@@ -173,8 +170,6 @@ class BrightnessManager extends EventEmitter {
 
   #initializeStats() {
     this.#stats.clear();
-    // Stale noise estimates would otherwise persist across learning resets
-    // and skew early feature-importance recalibration.
     this.#noiseStats.clear();
     for (let i = 0; i < this.#numericKeys.length; i++) {
       const feature = this.#numericKeys[i];
@@ -573,6 +568,7 @@ class BrightnessManager extends EventEmitter {
 
       this._updateLearningPhase(confidence);
     } finally {
+      this.#cycleInFlight = false;
       this.#recordCycleDuration(Date.now() - cycleStart);
     }
   }
@@ -795,7 +791,6 @@ class BrightnessManager extends EventEmitter {
       }, 500);
       if (this.#adjustingResetTimer.unref) this.#adjustingResetTimer.unref();
     }
-    this.#cycleInFlight = false;
   }
 
   async _verifyAppliedBrightness(target, attempts = 3, gapMs = 700) {
@@ -896,8 +891,6 @@ class BrightnessManager extends EventEmitter {
     return reuse;
   }
 
-  // Called on system resume: pre-sleep ambient/power readings are stale, so
-  // drop the reuse window to force a fresh cycle.
   invalidateCaches() {
     this.#lastAmbientState = null;
     this.#lastAmbientStateAt = 0;
@@ -937,9 +930,6 @@ class BrightnessManager extends EventEmitter {
       ? webcamResult.faces.faceBrightness
       : null;
     const statsData = validWebcam ? webcamResult.stats : null;
-    // Raw Bayer frames carry true sensor-referred channel means and CCT;
-    // the lux estimate from them needs no AE clamp since exposure is not
-    // auto-adjusted to the scene (values are absolute, not re-metered).
     const rawStats = validWebcam ? webcamResult.raw : null;
     const effectiveExposure = (statsData && typeof statsData.exposure === 'number')
       ? statsData.exposure
@@ -948,10 +938,6 @@ class BrightnessManager extends EventEmitter {
       : null;
     if (ambientLightLuxRaw == null) {
       if (rawStats && Number.isFinite(rawStats.rawMeanG)) {
-        // Green-channel sensor mean of the un-demosaiced mosaic: the closest
-        // thing to a luminance reading the sensor offers, untouched by AE
-        // re-metering. Scaled with the same 78-anchor power law as the
-        // processed path; no clamp because there is no AE to fight.
         ambientLightLuxRaw = faceLuxEstimate(rawStats.rawMeanG);
         ambientLightDetail = 'raw';
       } else if (faceDetected && faceMeanForLux !== null) {
@@ -963,9 +949,6 @@ class BrightnessManager extends EventEmitter {
       }
       if (ambientLightLuxRaw !== null) ambientLightSource = 'webcam';
     }
-    // Face/scene regimes disagree systematically (scene reads high).
-    // Keep the raw lux estimate for forensics; the trailing median below
-    // steadies the learned feature against one-cycle regime flicker.
     const rawAmbientLux = ambientLightLuxRaw;
     if (readSlowSignals) {
       this.#cachedPowerInfo = powerInfo;
@@ -1036,9 +1019,6 @@ class BrightnessManager extends EventEmitter {
       visualConfidence = Math.max(0, exposure - noise + Math.round(sharpness / 20));
     }
 
-    // Trailing median over ambient readings so a one-cycle face/scene
-    // flicker can't step the learned ambient feature. Raw value still
-    // exported as ambientLightLuxRaw for forensics.
     if (typeof ambientLightVal === 'number' && Number.isFinite(ambientLightVal)) {
       this.#ambientMedianWindow.push(ambientLightVal);
       while (this.#ambientMedianWindow.length > AMBIENT_MEDIAN_WINDOW) this.#ambientMedianWindow.shift();
@@ -1351,8 +1331,6 @@ class BrightnessManager extends EventEmitter {
     return Math.min(FEATURE_EPS_CEILING, Math.max(FEATURE_NOISE_FLOOR, eps));
   }
 
-  // Median of the trailing ambientLight window: a brief face/scene flicker
-  // no longer steps the learned ambient feature between regimes.
   _medianAmbientLight() {
     const values = this.#ambientMedianWindow
       .filter((v) => typeof v === 'number' && Number.isFinite(v));
@@ -1360,9 +1338,6 @@ class BrightnessManager extends EventEmitter {
     return arrayMedian(values);
   }
 
-  // A consistent low battery reading votes toward accepting it; the first
-  // one is treated as a Win32_Battery glitch and holds the previous value
-  // instead of poisoning the distance metric with a 1 ↔ 0.02 swing.
   #registerBatteryVote(rawPercent) {
     if (typeof rawPercent !== 'number' || !Number.isFinite(rawPercent)) return null;
     const now = Date.now();
@@ -1380,8 +1355,6 @@ class BrightnessManager extends EventEmitter {
     return null;
   }
 
-  // Prefer the confirmed-stable battery reading; transient single-digit
-  // percents on AC stay out of the learned feature until a second vote.
   _resolveStableBatteryLevel(rawPercent) {
     const now = Date.now();
     if (
@@ -1424,8 +1397,6 @@ class BrightnessManager extends EventEmitter {
         const before = FEATURE_DEFINITIONS[key].accessor(prev);
         if (cur == null || before == null) continue;
 
-        // Time features always advance — the smoothing below would otherwise
-        // freeze dayLight/sin/cos at stale values (observed in live logs).
         if (TIME_FEATURE_KEYS.has(key)) {
           const delta = cur - before;
           if (Math.abs(delta) >= 1e-9) changedFeatures.push(key);
@@ -1489,9 +1460,6 @@ class BrightnessManager extends EventEmitter {
           }
         }
         this.logs = cleanLogs;
-        // Zero logs with an old startTime inflates the time-based confidence
-        // signal and exits learning mode with no data (e.g. user deleted
-        // brightnessLogs.json but not learningConfig.json).
         if (this.logs.length === 0) {
           this.learningConfig.startTime = Date.now();
         }
@@ -1514,10 +1482,6 @@ class BrightnessManager extends EventEmitter {
         ...this.learningConfig,
         startTime: new Date(this.learningConfig.startTime).toISOString()
       };
-      // Compact JSON saves ~50% disk vs pretty-printed; truncation to last
-      // logLimit entries prevents unbounded growth of brightnessLogs.json
-      // (the in-memory array is already bounded, but on-disk JSON stays
-      // 2× because of the pretty-printing overhead on nested objects).
       const diskLogs = this.logs.length > this.settings.logLimit
         ? logsToSave.slice(-this.settings.logLimit)
         : logsToSave;

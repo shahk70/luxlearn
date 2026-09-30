@@ -207,8 +207,6 @@ window.addEventListener('DOMContentLoaded', () => {
             setText(elems.location.sunrise, data.sunrise || 'N/A');
             setText(elems.location.sunset, data.sunset || 'N/A');
 
-            // Show a small provenance badge next to the city name so users can
-            // verify GPS coordinates are being used, not just IP geolocation.
             if (elems.location.cityBadge) {
                 const src = data.locationSource;
                 if (src === 'gps') {
@@ -445,9 +443,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     const LOG_VERBOSITY = { debug: 0, info: 1, success: 2, warn: 3, error: 4 };
-    // Thresholds: each filter level includes that level and everything above it.
-    // normal (default) hides only debug-level noise; info shows info onward;
-    // debug shows everything including future debug-only diagnostics.
     function shouldShowLogLevel(logLevel, filter) {
         if (filter === 'off') return false;
         const verbosity = LOG_VERBOSITY[logLevel];
@@ -469,8 +464,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     function updateLogsUI({ level, timestamp, message }) {
         if (!shouldShowLogLevel(level, currentLogLevel)) return;
-        // Live pushes can race the startup history fetch and deliver the same
-        // entry twice — skip exact duplicates.
         const key = `${level}|${timestamp}|${message}`;
         if (seenLogKeys.has(key)) return;
         seenLogKeys.add(key);
@@ -789,7 +782,6 @@ window.addEventListener('DOMContentLoaded', () => {
             item.classList.toggle('active', item === li);
             if (item.hasAttribute('aria-selected')) {
                 item.setAttribute('aria-selected', item === li ? 'true' : 'false');
-                // Roving tabindex: only the active tab stays in the tab order.
                 item.setAttribute('tabindex', item === li ? '0' : '-1');
             }
         };
@@ -1292,9 +1284,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            chartStaticCanvas = document.createElement('canvas');
-            chartStaticCanvas.width = canvas.width;
-            chartStaticCanvas.height = canvas.height;
+            if (!chartStaticCanvas) chartStaticCanvas = document.createElement('canvas');
+            if (chartStaticCanvas.width !== canvas.width || chartStaticCanvas.height !== canvas.height) {
+                chartStaticCanvas.width = canvas.width;
+                chartStaticCanvas.height = canvas.height;
+            }
             chartStaticCanvas.getContext('2d').drawImage(canvas, 0, 0);
 
             if (hoverX !== null && hoverX >= padL && hoverX <= padL + w) {
@@ -1444,9 +1438,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const startActivityPoll = () => {
         if (activityPollTimer) return;
         const tick = async () => {
-            // Skip polling when the page is not visible (browser/tab hidden or
-            // Electron window occluded) and use a bounded retry cycle on
-            // errors so we don't hammer the main process.
             if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
             try {
                 const res = await window.api.checkActivityWindow?.();
@@ -1475,8 +1466,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         };
         const initial = tick();
-        // Bounded retry for the first burst so a transient main-process error
-        // doesn't enter a 10-second noise loop.
         let retryCount = 0;
         const scheduleRetry = () => {
             if (retryCount >= 3 || activityPollTimer) return;
@@ -1577,9 +1566,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 startHistoryRefresh();
                 populateDeviceSelects();
                 elems.logsList.innerHTML = `<li><span>--:--</span> ${t('status.ready')}</li>`;
-                // Pull anything logged before the UI was ready (startup, GPS
-                // probe, …) so filters apply to the full session, not just
-                // entries that arrive after this point.
                 window.api.getLogHistory?.().then((history) => {
                     if (Array.isArray(history)) history.forEach(updateLogsUI);
                 }).catch(() => {});

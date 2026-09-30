@@ -60,17 +60,12 @@ const BAYER_FORMATS = [
   'bayer_gbrg12'
 ];
 
-// Preference order: 8-bit (smallest, universally decodable), common patterns first.
 const BAYER_FORMAT_RANK = (fmt) => {
   const depth = fmt.endsWith('8') ? 0 : fmt.endsWith('10') ? 1 : 2;
   const pattern = fmt.includes('rggb') ? 0 : fmt.includes('grbg') ? 1 : fmt.includes('gbrg') ? 2 : 3;
   return depth * 10 + pattern;
 };
 
-// ffmpeg prints supported raw formats (and their frame sizes) on stderr:
-//   v4l2:  "bayer_rggb8 640x480 30/1 ..."
-//   dshow (-list_options): "pixel_format=bayer_rggb8  min s=640x480 fps=30 ..."
-// (dshow has no -list_formats option, so it must be queried with -list_options.)
 function parseRawFormatLines(text) {
   const found = new Map(); // format -> Set of 'WxH'
   for (const line of String(text || '').split(/\r?\n/)) {
@@ -88,8 +83,6 @@ async function ffmpegListRawFormats(device) {
   if (!bin) return [];
   return new Promise((resolve) => {
     const format = PLATFORM === 'win32' ? 'dshow' : PLATFORM === 'darwin' ? 'avfoundation' : 'v4l2';
-    // NOTE: only v4l2 understands -list_formats; dshow is queried with
-    // -list_options (same -i device selector as the capture path).
     const args = format === 'dshow'
       ? ['-hide_banner', '-f', 'dshow', '-list_options', 'true', '-i', device ? `video=${device}` : 'video=0']
       : format === 'avfoundation'
@@ -111,7 +104,6 @@ function pickRawCapture(formatMap) {
       .map((m) => ({ w: Number(m[1]), h: Number(m[2]) }))
       .filter(({ w, h }) => w >= 320 && h >= 240 && w * h <= 1920 * 1080);
     if (parsed.length === 0) return null;
-    // Prefer the size closest to 640x480; keep bytes/pixel small for probe speed.
     parsed.sort((a, b) => Math.abs(a.w * a.h - 640 * 480) - Math.abs(b.w * b.h - 640 * 480));
     return `${parsed[0].w}x${parsed[0].h}`;
   };
@@ -123,8 +115,6 @@ function pickRawCapture(formatMap) {
   return null;
 }
 
-// Device -> { raw: {format,size} | null, at } — raw capability is a device
-// property; probe once per cache window like the backend availability probe.
 const RAW_PROBE_TTL_MS = 5 * 60 * 1000;
 const rawCapabilityCache = new Map();
 
@@ -166,7 +156,7 @@ async function captureRawFrame(device) {
         '-f', inputFormat,
         '-input_format', rawCap.format,
         '-video_size', rawCap.size,
-        ...ffmpegDeviceInputTail(device),
+        ...ffmpegDeviceInput(device, false),
         '-frames:v', '1',
         '-f', 'rawvideo',
         '-pix_fmt', rawCap.format,
@@ -191,15 +181,11 @@ async function captureRawFrame(device) {
     const bitDepth = rawCap.format.endsWith('8') ? 8 : rawCap.format.endsWith('10') ? 10 : 12;
     return { buffer: buf, width: w, height: h, pattern, bitDepth };
   } catch (e) {
-    // A device that advertised Bayer but fails to stream it shouldn't be
-    // re-probed every cycle; the next probe comes after the TTL or a backend change.
     if (e.message && /truncated|not created|Error/i.test(e.message)) {
       rawCapabilityCache.set(device || '__default__', { raw: null, at: Date.now() });
     }
     return null;
   } finally {
-    // Best-effort cleanup; log (but don't throw) so a persistent tmpdir
-    // failure is at least diagnosable instead of silently orphaning files.
     fs.promises.unlink(outFile).catch((err) => {
       if (err && err.code !== 'ENOENT') {
         logger.warn(`Failed to remove temp raw frame: ${err.message}`);
@@ -214,27 +200,19 @@ function commandCamDeviceArg(device) {
   return ['/devname', device];
 }
 
-function ffmpegDeviceInput(device) {
+function ffmpegDeviceInput(device, withSize = true) {
+  const sizeFlag = withSize ? ['-video_size', FFMPEG_DSHOW_SIZE] : [];
   if (PLATFORM === 'win32') {
-    return device ? ['-f', 'dshow', '-video_size', FFMPEG_DSHOW_SIZE, '-i', `video=${device}`]
-      : ['-f', 'dshow', '-video_size', FFMPEG_DSHOW_SIZE, '-i', 'video=0'];
+    return device
+      ? ['-f', 'dshow', ...sizeFlag, '-i', `video=${device}`]
+      : ['-f', 'dshow', ...sizeFlag, '-i', 'video=0'];
   }
   if (PLATFORM === 'darwin') {
     return device ? ['-f', 'avfoundation', '-i', device] : ['-f', 'avfoundation', '-i', '0'];
   }
-  return device ? ['-f', 'v4l2', '-video_size', FFMPEG_DSHOW_SIZE, '-i', device] : ['-f', 'v4l2', '-video_size', FFMPEG_DSHOW_SIZE, '-i', '/dev/video0'];
-}
-
-// Same device selector as ffmpegDeviceInput but without the size/input flags,
-// for callers that pass their own pixels/format/size first.
-function ffmpegDeviceInputTail(device) {
-  if (PLATFORM === 'win32') {
-    return device ? ['-i', `video=${device}`] : ['-i', 'video=0'];
-  }
-  if (PLATFORM === 'darwin') {
-    return device ? ['-i', device] : ['-i', '0'];
-  }
-  return device ? ['-i', device] : ['-i', '/dev/video0'];
+  return device
+    ? ['-f', 'v4l2', ...sizeFlag, '-i', device]
+    : ['-f', 'v4l2', ...sizeFlag, '-i', '/dev/video0'];
 }
 
 function buildCandidateList() {
@@ -612,8 +590,6 @@ function getWorker() {
 
 function analyzeInWorker(payload) {
   return new Promise((resolve, reject) => {
-    // Guard against unbounded queue growth when the worker is wedged — cap at
-    // 5 pending analyses (avoids OOM while still tolerating one slow frame).
     const MAX_PENDING = 5;
     if (pending.size >= MAX_PENDING) {
       reject(new Error('Analysis worker queue full — frame dropped'));
@@ -654,10 +630,6 @@ async function coreGetWebCamBrightness(opts = {}, imageBuffer) {
 
 let inFlightCapture = null;
 
-// Raw path: capture a Bayer frame, hand it to the worker for demosaic +
-// analysis. Returns { result, mode: 'raw' } on success, null when the
-// device has no Bayer capability or the capture failed (caller then uses
-// the processed path).
 async function tryRawCapture(opts = {}) {
   if (PLATFORM === 'darwin') return null;
   const rawCap = await resolveRawCapability(opts.device);
@@ -692,8 +664,6 @@ function getWebCamBrightness(opts = {}) {
           error: true
         };
       }
-      // Prefer a Bayer raw frame when the device streams one; its channel
-      // means and color temperature come straight from the sensor.
       const rawAttempt = await tryRawCapture(opts);
       if (rawAttempt) return rawAttempt.result;
       const imageBuffer = await captureImageBuffer(opts.device);

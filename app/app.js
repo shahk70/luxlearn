@@ -1,6 +1,4 @@
-// app.js — Electron main process (entry point; .env loaded in index.js).
-// To build a distributable, use one of the packaging scripts in package.json,
-// e.g. `npm run dist:win` / `npm run dist:mac` / `npm run dist:linux`.
+// app.js
 
 const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog, shell, systemPreferences, powerMonitor } = require('electron');
 const path = require('path');
@@ -29,8 +27,6 @@ try {
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.logger = console;
     autoUpdater.on('update-available', (info) => {
-        // GitHub releaseNotes may be a string, markdown text, or an array of
-        // note entries; normalise to plain text for the renderer banner.
         let notes = '';
         if (typeof info.releaseNotes === 'string') {
             notes = info.releaseNotes;
@@ -92,8 +88,6 @@ process.on('unhandledRejection', (reason) => {
     logger.error(`Unhandled promise rejection in main process: ${reason?.stack || reason}`);
 });
 
-// Every log in the app flows through the central logger; the Status page
-// ("Recent Changes") subscribes below, so filters apply to all modules.
 logger.onLog((entry) => sendToMainWindow('log-update', entry));
 
 if (!app.requestSingleInstanceLock()) {
@@ -108,8 +102,6 @@ if (!app.requestSingleInstanceLock()) {
             state.availableUpdate = update;
             sendToMainWindow('update-available', update);
         });
-        // Sleep/wake invalidates cachedFn caches (power, night light) and any
-        // in-flight captures — first cycle after resume reads fresh state.
         powerMonitor.on('resume', () => {
             logger.info('System resumed from sleep; clearing stale caches.');
             try { require('../signals').clearCaches(); } catch { /* ignore */ }
@@ -237,8 +229,6 @@ async function initializeLogic() {
 
         setInterval(refreshWeatherData, WEATHER_REFRESH_INTERVAL_MS).unref();
 
-        // --- Background: fetch real GPS weather, push update when ready ---
-        // Never blocks startup — cached data already shown by the time this resolves.
         refreshWeatherData(true);
 
         if (mainWindow) {
@@ -417,9 +407,6 @@ async function setLinuxAutostart(enabled) {
 
 function updateLoginItemSettings() {
     if (process.platform === 'win32') {
-        // Single Run-key name shared with the installer; previously the app
-        // registered under the AUMID ("SKR.LuxLearn") while the installer
-        // wrote "LuxLearn", leaving two startup entries per update.
         app.setLoginItemSettings({
             openAtLogin: state.settings.startWithSystem,
             name: 'LuxLearn',
@@ -718,13 +705,6 @@ ipcMain.handle('activity:check-window', async () => {
 
 ipcMain.handle('about:get-version', () => app.getVersion());
 
-// Windows blocks silent taskbar pinning from installers (the "pin to
-// taskbar" verb rejects non-explorer callers since 1809; copying .lnk
-// files into User Pinned no longer sticks; WinRT TaskbarManager needs the
-// app itself foregrounded with user consent). So the installer checkbox
-// records intent in the registry, and on the next foreground start the
-// app shows a one-time hint pointing at the running icon instead of
-// pretending to pin. Flag is cleared either way so it never nags.
 function checkTaskbarPinRequest() {
     if (process.platform !== 'win32') return Promise.resolve(null);
     return new Promise((resolve) => {
@@ -777,7 +757,7 @@ ipcMain.handle('about:download-update', async () => {
     downloadInProgress = true;
     try {
         const result = await new Promise((resolve, reject) => {
-            const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes — installer is ~98 MB
+            const TIMEOUT_MS = 5 * 60 * 1000;
             let settled = false;
             const onDownloaded = () => { if (!settled) { settled = true; resolve({ success: true }); } };
             const onError = (err) => { if (!settled) { settled = true; reject(err); } };
@@ -807,7 +787,6 @@ ipcMain.handle('about:download-update', async () => {
                 reject(new Error('Download timed out after 5 minutes'));
             }, TIMEOUT_MS);
 
-            // .once() auto-removes after first fire; no removeAllListeners needed
             autoUpdater.once('update-downloaded', () => {
                 if (settled) return;
                 settled = true;
@@ -1030,8 +1009,6 @@ ipcMain.handle('open-external', (_, url) => {
     return { success: true };
 });
 ipcMain.handle('refresh-location', async () => {
-    // Return immediately so renderer stays responsive.
-    // Result arrives via sendWeatherUpdateToUI when background work finishes.
     (async () => {
         try {
             const { refreshLocationNow } = require('../weather');

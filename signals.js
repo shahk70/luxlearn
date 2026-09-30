@@ -477,11 +477,6 @@ async function winGetWmi() {
 }
 
 async function winGetCim(instance) {
-  // Note: instance names flow inside a single-quoted PowerShell string, where
-  // only the single quote itself needs doubling ('' is the PS escape).
-  // $-signs and backticks are literal inside single quotes, so no further
-  // escaping is needed. We route through execPowerShell (base64
-  // -EncodedCommand) to avoid the extra cmd.exe quoting layer entirely.
   let ps = '(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness).CurrentBrightness';
   if (instance) {
     const escaped = String(instance).replace(/'/g, "''");
@@ -648,12 +643,11 @@ async function winListWmiInstances() {
 }
 
 async function winGet() {
-  if (_backendOk(winCandidateStatus, 'wmi')) return winGetWmi();
-  if (_backendOk(winCandidateStatus, 'cim')) return winGetCim();
-  if (_backendOk(winCandidateStatus, 'ddc')) return winGetDdc();
+  const fns = { wmi: () => winGetWmi(), cim: () => winGetCim(), ddc: () => winGetDdc() };
+  const known = ['wmi', 'cim', 'ddc'].filter(id => _backendOk(winCandidateStatus, id));
+  if (known.length > 0) return fns[known[0]]();
   const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id));
   if (unprobed.length === 0) throw winUnsupportedError();
-  const fns = { wmi: () => winGetWmi(), cim: () => winGetCim(), ddc: () => winGetDdc() };
   for (const id of unprobed) {
     try {
       const value = await fns[id]();
@@ -673,25 +667,21 @@ async function winSet(value, opts = {}) {
   }
   const clamped = Math.min(100, Math.max(0, Math.round(numeric)));
   const display = opts.display ?? 'all';
-  if (_backendOk(winCandidateStatus, 'wmi')) {
-    await execAsync(WIN_SET_CMD_WMI(clamped));
-    return;
-  }
-  if (_backendOk(winCandidateStatus, 'cim')) {
-    await winSetCimInstance(clamped, display === 'all' ? null : display);
-    return;
-  }
-  if (_backendOk(winCandidateStatus, 'ddc')) {
-    await winSetDdc(clamped, display);
-    return;
-  }
+
+  const fns = {
+    wmi: () => execAsync(WIN_SET_CMD_WMI(clamped)),
+    cim: () => winSetCimInstance(clamped, display === 'all' ? null : display),
+    ddc: () => winSetDdc(clamped, display),
+  };
+
+  const known = ['wmi', 'cim', 'ddc'].filter(id => _backendOk(winCandidateStatus, id));
+  if (known.length > 0) return fns[known[0]]();
+
   const unprobed = ['wmi', 'cim', 'ddc'].filter(id => !winCandidateStatus.has(id));
   if (unprobed.length === 0) throw winUnsupportedError();
   for (const id of unprobed) {
     try {
-      if (id === 'wmi') await execAsync(WIN_SET_CMD_WMI(clamped));
-      else if (id === 'cim') await winSetCimInstance(clamped, display === 'all' ? null : display);
-      else await winSetDdc(clamped, display);
+      await fns[id]();
       winCandidateStatus.set(id, 'ok');
       return;
     } catch {
@@ -703,37 +693,40 @@ async function winSet(value, opts = {}) {
 
 const macCandidateStatus = new Map();
 
+const MAC_BACKENDS = [
+  {
+    type: 'brightness',
+    probe: async () => {
+      for (const bin of ['/opt/homebrew/bin/brightness', '/usr/local/bin/brightness', 'brightness']) {
+        try { await execAsync(`${bin} -l`); return { type: 'brightness', bin }; } catch { /* next */ }
+      }
+      return null;
+    },
+  },
+  {
+    type: 'm1ddc',
+    probe: async () => {
+      for (const bin of ['/opt/homebrew/bin/m1ddc', '/usr/local/bin/m1ddc', 'm1ddc']) {
+        try { await execAsync(`${bin} get luminance`); return { type: 'm1ddc', bin }; } catch { /* next */ }
+      }
+      return null;
+    },
+  },
+  {
+    type: 'ddcctl',
+    probe: async () => {
+      for (const bin of ['/opt/homebrew/bin/ddcctl', '/usr/local/bin/ddcctl', 'ddcctl']) {
+        try { await execAsync(`${bin} -d 1 -b ?`); return { type: 'ddcctl', bin }; } catch { /* next */ }
+      }
+      return null;
+    },
+  },
+];
+
 async function resolveMacBackend(preferred) {
-  const chain = [
-    {
-      type: 'brightness',
-      probe: async () => {
-        for (const bin of ['/opt/homebrew/bin/brightness', '/usr/local/bin/brightness', 'brightness']) {
-          try { await execAsync(`${bin} -l`); return { type: 'brightness', bin }; } catch { /* next */ }
-        }
-        return null;
-      },
-    },
-    {
-      type: 'm1ddc',
-      probe: async () => {
-        for (const bin of ['/opt/homebrew/bin/m1ddc', '/usr/local/bin/m1ddc', 'm1ddc']) {
-          try { await execAsync(`${bin} get luminance`); return { type: 'm1ddc', bin }; } catch { /* next */ }
-        }
-        return null;
-      },
-    },
-    {
-      type: 'ddcctl',
-      probe: async () => {
-        for (const bin of ['/opt/homebrew/bin/ddcctl', '/usr/local/bin/ddcctl', 'ddcctl']) {
-          try { await execAsync(`${bin} -d 1 -b ?`); return { type: 'ddcctl', bin }; } catch { /* next */ }
-        }
-        return null;
-      },
-    },
-  ];
-  const ordered = preferred ? [...chain.filter(c => c.type === preferred), ...chain.filter(c => c.type !== preferred)] : chain;
+  const ordered = preferred
+    ? [...MAC_BACKENDS.filter(c => c.type === preferred), ...MAC_BACKENDS.filter(c => c.type !== preferred)]
+    : MAC_BACKENDS;
   for (const entry of ordered) {
     if (_backendFailed(macCandidateStatus, entry.type)) continue;
     const status = macCandidateStatus.get(entry.type);
@@ -756,12 +749,15 @@ function macMissingError() {
   );
 }
 
+function macParseDisplayList(display) {
+  if (display === 'all' || display == null) return [1];
+  const n = Number(display);
+  return Number.isInteger(n) && n > 0 ? [n] : [];
+}
+
 async function macGetDisplayTarget(backend, display) {
-  if (backend.type === 'ddcctl' && display && display !== 'all') {
-    const n = Number(display);
-    if (Number.isInteger(n) && n > 0) return n;
-  }
-  return 1;
+  const targets = macParseDisplayList(display);
+  return targets.length > 0 ? targets[0] : 1;
 }
 
 async function macGet(preferred, display) {
@@ -803,8 +799,7 @@ async function macSet(value, opts = {}) {
       return;
     }
     if (backend.type === 'ddcctl') {
-      const displays = opts.display === 'all' || opts.display == null ? [1]
-        : [Number(opts.display)].filter(n => Number.isInteger(n) && n > 0);
+      const displays = macParseDisplayList(opts.display);
       if (displays.length === 0) throw new Error(`ddcctl: invalid display "${opts.display}".`);
       for (const d of displays) {
         await execAsync(`${backend.bin} -d ${d} -b ${clamped}`);
@@ -858,9 +853,6 @@ async function getXrandrOutputs() {
 
 function parseXrandrTargetDisplay(display) {
   if (display == null || display === 'all' || display === '') return null;
-  // Display identifiers flow into shell commands (brightnessctl, ddcutil,
-  // xrandr). Reject anything outside the safe identifier charset so a
-  // crafted settings value can't break out of the command.
   const id = String(display);
   return /^[A-Za-z0-9._:\/-]{1,64}$/.test(id) ? id : null;
 }
@@ -918,14 +910,23 @@ function unlatchFailedBackends() {
   }
 }
 
-async function linuxGet() {
+async function withLinuxBackend(op, { markUsed = false } = {}) {
   const backend = await resolveLinuxBackend();
   if (!backend) throw linuxMissingError();
-
   try {
+    const result = await op(backend);
+    if (markUsed) markLinuxBackendUsed(backend);
+    return result;
+  } catch (err) {
+    markLinuxBackendFailed(backend);
+    throw err;
+  }
+}
+
+async function linuxGet() {
+  return withLinuxBackend(async (backend) => {
     if (backend === 'brightnessctl') {
       const { stdout } = await execAsync('brightnessctl -m get');
-      // -m prints: device,type,current,max,percentage — take field 4.
       const parts = stdout.trim().split(',');
       const percentStr = parts[4];
       if (percentStr && percentStr.includes('%')) return parseInt(percentStr, 10);
@@ -951,50 +952,35 @@ async function linuxGet() {
 
     const output = await getXrandrOutputs();
     return readXrandrBrightness(output[0]);
-  } catch (err) {
-    markLinuxBackendFailed(backend);
-    throw err;
-  }
+  });
 }
 
 let xrandrLastValue = null;
 
 async function linuxSet(value, opts = {}) {
-  const backend = await resolveLinuxBackend();
-  if (!backend) throw linuxMissingError();
-
   const clamped = Math.min(100, Math.max(0, Math.round(value)));
   const target = parseXrandrTargetDisplay(opts.display);
 
-  try {
+  return withLinuxBackend(async (backend) => {
     if (backend === 'brightnessctl') {
-      // target is already validated by parseXrandrTargetDisplay
-      // (safe identifier charset), so it interpolates safely.
-      if (target && target !== 'all') {
-        await execAsync(`brightnessctl --device='${target}' set ${clamped}%`);
-      } else {
-        await execAsync(`brightnessctl set ${clamped}%`);
-      }
-      markLinuxBackendUsed(backend);
+      await execAsync(target
+        ? `brightnessctl --device='${target}' set ${clamped}%`
+        : `brightnessctl set ${clamped}%`);
       return;
     }
     if (backend === 'light') {
       await execAsync(`light -S ${clamped}`);
-      markLinuxBackendUsed(backend);
       return;
     }
     if (backend === 'ddcutil') {
-      if (target && target !== 'all' && /^\d+$/.test(target)) {
-        await execAsync(`ddcutil setvcp 10 ${clamped} --display ${target}`);
-      } else {
-        await execAsync(`ddcutil setvcp 10 ${clamped}`);
-      }
-      markLinuxBackendUsed(backend);
+      await execAsync(target && /^\d+$/.test(target)
+        ? `ddcutil setvcp 10 ${clamped} --display ${target}`
+        : `ddcutil setvcp 10 ${clamped}`);
       return;
     }
 
     const outputs = await getXrandrOutputs();
-    const targets = target && target !== 'all' ? outputs.filter(o => o === target) : outputs;
+    const targets = target ? outputs.filter(o => o === target) : outputs;
     const list = targets.length > 0 ? targets : outputs;
     const normalized = Math.max(0.1, clamped / 100);
     for (const output of list) {
@@ -1002,11 +988,7 @@ async function linuxSet(value, opts = {}) {
       await execAsync(`xrandr --output ${output} --brightness ${normalized.toFixed(2)}`);
     }
     xrandrLastValue = clamped;
-    markLinuxBackendUsed(backend);
-  } catch (err) {
-    markLinuxBackendFailed(backend);
-    throw err;
-  }
+  }, { markUsed: true });
 }
 
 async function listDisplays() {

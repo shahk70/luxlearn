@@ -9,21 +9,14 @@ const CONFIG = {
     OPEN_METEO_URL: 'https://api.open-meteo.com/v1/forecast',
     IP_GEOLOCATION_URL: 'https://ip-api.com/json/?fields=status,lat,lon,city,countryCode,query',
     DEFAULT_LOCATION: { latitude: 0, longitude: 0 },
-    LOCATION_CACHE_TTL_MS: 6 * 60 * 60 * 1000,      // GPS fix – authoritative for 6 h
-    IP_LOCATION_CACHE_TTL_MS: 2 * 60 * 60 * 1000,   // IP fix – re-validate against GPS frequently
+    LOCATION_CACHE_TTL_MS: 6 * 60 * 60 * 1000,
+    IP_LOCATION_CACHE_TTL_MS: 2 * 60 * 60 * 1000,
     MAX_LOCATION_DRIFT_KM: 50,
     API_TIMEOUT_MS: 15000,
     IP_GEOLOCATION_TIMEOUT_MS: 5000,
     DAILY_WEATHER_TTL_MS: 3600000, // 1 hour
 };
 
-// Bundled public pool, shared by all installs without private keys.
-// NOTE: probed 2026-09-20 — only the first key is live; the other six return
-// HTTP 401 code=2006 "API key is invalid" and serve purely as rotation
-// spares. Every install shares this pool's quota, so expect throttling or a
-// future revocation; set WEATHERAPI_PRIVATE_KEYS / WEATHERAPI_KEYS /
-// WEATHERAPI_KEY (.env) for private quota. Key values are never logged —
-// only their position in the pool.
 const BUNDLED_PUBLIC_KEYS = '7ea8119d248847779d0102919232710,6St40m8Siqww0dlFI1g7FqVKGP8A8lCi,cuNEvvF9R6nrkgfxtyb6i4ESJn8Ni8b6,cnI9GWvp7hOzR7qPI9Z3uQpREHRKn6jb,5KrZFlv6DbWosTDfrcSv1F8s5bLZdNf0,NcoH9JHLho0vPsqap57C2aAdO2HtcaVA,gI4KPjPSN04O0kiuk4O7gNkysjWfF2fI'
     .split(',').map((k) => k.trim()).filter(Boolean);
 
@@ -90,9 +83,6 @@ function haversineDistanceKm(a, b) {
 
 function isPlausibleDrift(candidate, candidateSource) {
     if (!lastAcceptedLocation) return true;
-    // GPS is authoritative over an IP baseline — the IP city can be hundreds
-    // of km away when using a VPN or carrier-level NAT, so a GPS fix that
-    // disagrees with a stale IP location is perfectly normal.
     if (candidateSource === 'gps' && lastAcceptedSource === 'ip') return true;
     const distanceKm = haversineDistanceKm(lastAcceptedLocation, candidate);
     if (distanceKm > CONFIG.MAX_LOCATION_DRIFT_KM) {
@@ -130,16 +120,8 @@ function isValidCoord(loc) {
 }
 
 let lastGpsProbeTime = 0;
-// GPS probes can block for up to ~20 s (the in-script watcher timeout) on
-// machines without a sensor, so rate-limit them. The cooldown is kept just
-// under the hourly weather refresh, so every hourly cycle re-validates an
-// IP-derived location against the sensor (instantly fixing VPN cases) while
-// GPS-less machines only pay the probe cost once per cycle.
 const GPS_PROBE_COOLDOWN_MS = 45 * 60 * 1000;
 
-// Last sensor probe outcome — surfaced to the UI so a permanent IP fallback
-// explains itself instead of failing silently (sensor missing vs. Windows
-// Location turned off vs. still warming up).
 let lastProbeAdvice = null;
 
 function probeAdviceForStatus(status) {
@@ -162,12 +144,10 @@ async function findLocation(forceRefresh = false) {
     const cacheFresh = !forceRefresh && memCache.location
         && (now - memCache.timestamp < CONFIG.LOCATION_CACHE_TTL_MS);
 
-    // A cached GPS fix is authoritative — return it immediately.
     if (cacheFresh && memCache.source === 'gps') {
         return memCache.location;
     }
 
-    // Non-Windows has no GPS sensor: the IP cache stands as-is.
     if (cacheFresh && PLATFORM !== 'win32') {
         return memCache.location;
     }
@@ -175,11 +155,6 @@ async function findLocation(forceRefresh = false) {
     let loc = null;
     let source = null;
 
-    // On Windows, always probe the GPS sensor unless we already have a fresh
-    // GPS fix (handled above). An IP-derived cache entry — which can be
-    // hundreds of km off when the user is on a VPN or carrier NAT — must
-    // never blind the sensor. Probing is rate-limited so GPS-less machines
-    // aren't stalled for 12 s on every call.
     if (PLATFORM === 'win32' && (forceRefresh || now - lastGpsProbeTime >= GPS_PROBE_COOLDOWN_MS)) {
         lastGpsProbeTime = now;
         try {
@@ -204,8 +179,6 @@ async function findLocation(forceRefresh = false) {
         }
     }
 
-    // The sensor yielded nothing but the IP cache is still within its shorter
-    // TTL — reuse it instead of re-hitting the IP geolocation service.
     if (!loc && cacheFresh && (now - memCache.timestamp < CONFIG.IP_LOCATION_CACHE_TTL_MS)) {
         return memCache.location;
     }
@@ -213,8 +186,6 @@ async function findLocation(forceRefresh = false) {
     if (!loc) {
         try {
             loc = await ipGeolocation();
-            // Only claim IP if a fix was actually produced — GPS staying null
-            // is the "we already know loc is ip-derived" signal.
             if (loc && isValidCoord(loc)) {
                 source = 'ip';
                 logger.info(`Using IP geolocation (${loc.city || 'unknown city'}) — sensor provided no fix this cycle`);
@@ -231,8 +202,6 @@ async function findLocation(forceRefresh = false) {
 
     if (!isPlausibleDrift(loc, source)) {
         const fallback = lastAcceptedLocation || CONFIG.DEFAULT_LOCATION;
-        // Keep the original accepted source on the cache — do NOT record the
-        // rejected fix as our new baseline (fixes state-corruption of drift guard).
         memCache = { location: fallback, timestamp: now, source: lastAcceptedSource || memCache.source };
         return fallback;
     }
@@ -240,7 +209,7 @@ async function findLocation(forceRefresh = false) {
     lastAcceptedLocation = loc;
     lastAcceptedSource = source;
     memCache = { location: loc, timestamp: now, source };
-    loc._locationSource = source; // stash for the caller so it can show provenance
+    loc._locationSource = source;
     return loc;
 }
 
@@ -253,9 +222,6 @@ function resetLocationCache() {
 async function refreshLocationNow() {
     resetLocationCache();
     const loc = await findLocation(true);
-    // If the forced probe yielded no GPS fix, the just-written IP cache (and
-    // the probe cooldown) would blind the follow-up weather refresh. Reset
-    // the cooldown so it re-probes the sensor instead of trusting IP.
     if (memCache.source !== 'gps') lastGpsProbeTime = 0;
     return loc;
 }
@@ -344,9 +310,6 @@ async function fetchFromApi() {
     let lastError = null;
     const usedKeys = new Set();
 
-    // Try every configured key before giving up: a rejected, throttled, or
-    // flaky key must never sink the whole cycle while others are configured.
-    // (Key values are never logged — only their position in the pool.)
     const maxAttempts = keys.length;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const privateUnused = keys.filter((k) => isPrivateKey(k) && !usedKeys.has(k));
@@ -365,9 +328,6 @@ async function fetchFromApi() {
             continue;
         }
         if (res.status === 401 || res.status === 403 || res.status === 429) {
-            // Read the API's error body — it names the exact cause (2006
-            // invalid, 2007 quota exhausted, 2008 disabled), which a bare
-            // HTTP status never reveals.
             let detail = `HTTP ${res.status}`;
             try {
                 const errBody = await res.json();
@@ -442,12 +402,8 @@ async function calculateFromCache() {
     const saved = await loadJSON(WEATHER_JSON_PATH, null);
     if (!saved || typeof saved !== 'object') throw new Error("No Cache");
 
-    // The persisted file may carry IP-derived (VPN) coordinates from a run
-    // where GPS hadn't locked yet. Prefer the freshest in-memory GPS fix so
-    // sunrise/sunset and the recorded lat/lon track the sensor even when the
-    // live weather APIs are unreachable — no extra probes on a failing network.
     const useGPS = lastAcceptedSource === 'gps' && isValidCoord(lastAcceptedLocation);
-    const latitude  = useGPS ? lastAcceptedLocation.latitude : (Number.isFinite(saved.latitude)  ? saved.latitude  : 0);
+    const latitude = useGPS ? lastAcceptedLocation.latitude : (Number.isFinite(saved.latitude) ? saved.latitude : 0);
     const longitude = useGPS ? lastAcceptedLocation.longitude : (Number.isFinite(saved.longitude) ? saved.longitude : 0);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error("No Cache");
 
@@ -502,20 +458,13 @@ async function updateDailyWeatherInfo(userSettings = {}) {
         };
     }
 
-    // Try sources in order: WeatherAPI (with keys), Open-Meteo (free, no key), cached suncalc, defaults
     let result = null;
     let source = 'unknown';
     let locRef = null;
 
     try {
-        // Single pass — the per-key loop above already IS the retry strategy.
-        // Wrapping this in retry() re-ran already-rejected keys and doubled
-        // requests/logs on deterministic failures (e.g. revoked keys).
         result = await fetchFromApi();
         source = 'weatherapi';
-        // findLocation ran inside fetchFromApi — its coordinates were cached,
-        // so we can't pull locRef._locationSource directly; fall back to the
-        // cache source (gps / ip) recorded by findLocation itself.
         locRef = { _locationSource: memCache.source || lastAcceptedSource || null };
     } catch (e) {
         logger.debug(`WeatherAPI failed: ${e.message}`);
@@ -562,12 +511,7 @@ async function updateDailyWeatherInfo(userSettings = {}) {
     }
 
     result._source = source;
-    // Pull the per-call location source (gps / ip) from whichever findLocation
-    // call produced the coordinates used.  If the path never called findLocation
-    // (cached-suncalc / default fallback) the field simply stays undefined.
     if (locRef && locRef._locationSource) result.locationSource = locRef._locationSource;
-    // When the sensor lost and IP won, explain why so the UI can show the
-    // reason instead of a bare "IP" badge.
     if (result.locationSource && result.locationSource !== 'gps' && lastProbeAdvice) {
         result.locationDetail = lastProbeAdvice;
     }

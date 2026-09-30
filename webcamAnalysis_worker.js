@@ -7,9 +7,6 @@ const cv = require('@techstark/opencv-js');
 const bmp = require('bmp-js');
 const sharp = require('sharp');
 
-// OpenCV color-conversion constants verified against a synthetic asymmetric
-// Bayer frame: for an ffmpeg 'bayer_<XXXX>' stream the demosaic constant is
-// cv['COLOR_Bayer' + <XXXX> + '2RGB'] — i.e. the pattern name is used as-is.
 const BAYER_DEMOSAIC = {
   rggb: 'COLOR_BayerRG2RGBA',
   bggr: 'COLOR_BayerBG2RGBA',
@@ -29,13 +26,10 @@ const THRESHOLDS = {
 
 const HAAR_CASCADE_FILE = 'haarcascade_frontalface_default.xml';
 
-// Worker threads have no access to the main-process logger; ship log entries
-// to the parent, which forwards them into the central log (Status page).
 function reportLog(level, message) {
   try {
     parentPort.postMessage({ log: { level, message: String(message) } });
   } catch {
-    // Parent gone — drop the entry.
   }
 }
 
@@ -296,10 +290,6 @@ function analyzeLightingOpencv(grayMat, stats) {
       }
     }
 
-    // Weak blobs (below significance area) are excluded from direction so a
-    // few noisy pixels don't swing the centroid; count still reports all
-    // significant blobs. Strength = share of frame area covered by bright
-    // blobs — tiny coverage means the direction reading is unreliable.
     let direction = 'Front/Balanced';
     let directionDetail = null;
     let directionStrength = 0;
@@ -405,23 +395,18 @@ function analyzeFrame({ buffer, width, height, detectFaces }) {
     srcMatFull = new cv.Mat(height, width, cv.CV_8UC4);
     srcMatFull.data.set(data);
 
+    grayMatFull = new cv.Mat();
+    cv.cvtColor(srcMatFull, grayMatFull, cv.COLOR_RGBA2GRAY);
+
     let faceAnalysis = { detected: false, count: 0, faces: [], faceExposure: null };
     if (detectFaces !== false) {
-      grayMatFull = new cv.Mat();
-      cv.cvtColor(srcMatFull, grayMatFull, cv.COLOR_RGBA2GRAY);
       faceAnalysis = detectFacesOnMat(grayMatFull);
-      grayMatFull.delete();
-      grayMatFull = null;
     }
 
-    const grayForFull = new cv.Mat();
-    cv.cvtColor(srcMatFull, grayForFull, cv.COLOR_RGBA2GRAY);
-
-    const baseStats = analyzeBasicStatsOpencv(grayForFull);
+    const baseStats = analyzeBasicStatsOpencv(grayMatFull);
     const colorAnalysis = analyzeColorBalanceOpencv(srcMatFull);
-    const blurStats = analyzeBlurOpencv(grayForFull);
-    const lighting = analyzeLightingOpencv(grayForFull, baseStats);
-    grayForFull.delete();
+    const blurStats = analyzeBlurOpencv(grayMatFull);
+    const lighting = analyzeLightingOpencv(grayMatFull, baseStats);
 
     let exposureScore = 0;
     let scoreDiagnosis = [];
@@ -534,14 +519,11 @@ function analyzeFrame({ buffer, width, height, detectFaces }) {
 function decodeBmpToRgba(imageBuffer) {
   const decoded = bmp.decode(Buffer.from(imageBuffer));
   const { width, height } = decoded;
-  // Reject absurd dimensions before allocating — a corrupt or hostile BMP
-  // header could otherwise request a multi-GB buffer.
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 || width > 16384 || height > 16384) {
     throw new Error(`Invalid BMP dimensions: ${width}x${height}`);
   }
   const src = decoded.data;
   const rgba = new Uint8ClampedArray(width * height * 4);
-  // bmp-js decodes 24bpp BMPs as [0,B,G,R] per pixel — reorder to RGBA.
   for (let i = 0; i < rgba.length; i += 4) {
     rgba[i] = src[i + 3];
     rgba[i + 1] = src[i + 2];
@@ -556,10 +538,6 @@ async function decodeLossyToRgba(imageBuffer) {
   return { buffer: new Uint8ClampedArray(data.buffer, data.byteOffset, data.byteLength), width: info.width, height: info.height };
 }
 
-// Demosaic a Bayer raw plane to RGBA via OpenCV. Pattern must be one of
-// rggb / bggr / gbrg / grbg; width/height are the sensor dimensions. 10-
-// and 12-bit values packed by ffmpeg as 16-bit words are normalized to
-// 8-bit with a bit shift so the downstream pipeline stays depth-invariant.
 function demosaicRaw(buffer, width, height, pattern, bitDepth = 8) {
   const fn = BAYER_DEMOSAIC[pattern];
   if (!fn) throw new Error(`Unknown Bayer pattern "${pattern}"`);
@@ -578,46 +556,41 @@ function demosaicRaw(buffer, width, height, pattern, bitDepth = 8) {
   return rgba;
 }
 
-// Mean of each Bayer color channel straight from the mosaic plane, without
-// demosaicing. Each sensor site holds one channel; the 2x2 mosaic phase
-// (pattern) says which. Values normalized to 0-255 for depth parity with
-// the demosaiced path.
 function bayerChannelMeans(buffer, width, height, pattern, bitDepth = 8) {
-  const map = {
-    rggb: { 0: 'r', 1: 'g1', 2: 'g2', 3: 'b' },
-    grbg: { 0: 'g1', 1: 'r', 2: 'b', 3: 'g2' },
-    gbrg: { 0: 'g1', 1: 'b', 2: 'r', 3: 'g2' },
-    bggr: { 0: 'b', 1: 'g1', 2: 'g2', 3: 'r' },
-  };
-  const siteMap = map[pattern] || map.rggb;
-  const sums = { r: 0, g: 0, b: 0 };
-  const counts = { r: 0, g: 0, b: 0 };
+  const siteMap = {
+    rggb: ['r', 'g', 'g', 'b'],
+    grbg: ['g', 'r', 'b', 'g'],
+    gbrg: ['g', 'b', 'r', 'g'],
+    bggr: ['b', 'g', 'g', 'r'],
+  }[pattern] || ['r', 'g', 'g', 'b'];
+
   const shift = bitDepth === 16 ? 8 : bitDepth === 12 ? 4 : bitDepth === 10 ? 2 : 0;
+  const view = shift > 0
+    ? Uint16Array.from(buffer, (v) => Math.min(255, v >> shift))
+    : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+
+  const sums = [0, 0, 0];
+  const counts = [0, 0, 0];
+  const channelIndex = { r: 0, g: 1, b: 2 };
+
   for (let y = 0; y < height; y++) {
     const rowBase = y * width;
+    const rowSite = (y & 1) * 2;
     for (let x = 0; x < width; x++) {
-      let v = buffer[rowBase + x];
-      if (shift) v = Math.min(255, v >> shift);
-      const site = (y & 1) * 2 + (x & 1);
-      const ch = siteMap[site][0]; // g1/g2 both fold into 'g'
-      sums[ch] += v;
+      const ch = channelIndex[siteMap[rowSite + (x & 1)]];
+      sums[ch] += view[rowBase + x];
       counts[ch]++;
     }
   }
+
   return {
-    rMean: counts.r ? sums.r / counts.r : 0,
-    gMean: counts.g ? sums.g / counts.g : 0,
-    bMean: counts.b ? sums.b / counts.b : 0,
+    rMean: counts[0] ? sums[0] / counts[0] : 0,
+    gMean: counts[1] ? sums[1] / counts[1] : 0,
+    bMean: counts[2] ? sums[2] / counts[2] : 0,
   };
 }
 
-// Distance from the Planckian locus in CIE 1960 uv, used to reject
-// chromaticities that aren't "whitish" (a frame dominated by a red poster
-// or green plant produces nonsense CCT). Planckian chromaticity per
-// Kim et al. 2002: cubic in 1/T for x, with y as a polynomial in x.
 function planckianXyAtCct(cct) {
-  // Kang et al. 2002 (colour-science/colour kang2002 reference), x branch
-  // coefficients transcribed verbatim.
   const t = 1 / cct;
   let x;
   if (cct <= 4000) {
@@ -625,8 +598,6 @@ function planckianXyAtCct(cct) {
   } else {
     x = -3.0258469e9 * t ** 3 + 2.1070379e6 * t ** 2 + 0.2226347e3 * t + 0.240390;
   }
-  // Kang/Y position branches (colour-science/colour kang2002 reference):
-  //  <=2222K: i coeffs; 2222–4000K: j coeffs; >4000K: k coeffs.
   let y;
   if (cct <= 2222) {
     y = -1.1063814 * x ** 3 - 1.34811020 * x ** 2 + 2.18555832 * x - 0.20219683;
@@ -644,12 +615,6 @@ function xyToUv1960(x, y) {
   return { u: 4 * x / d, v: 6 * y / d };
 }
 
-// CCT from raw Bayer channel means. Camera RGB responses are not CIE
-// XYZ, so the means first go through the standard sRGB-primary matrix
-// (a reasonable approximation for typical Bayer sensors with IR-cut
-// filters — same approach as the Analog Devices RGB-sensor app note),
-// then CIE xy -> McCamy (1992) cubic, with a Planckian-locus Duv guard
-// so strongly colored scenes don't produce a bogus Kelvin number.
 function computeColorTempCct(rMean, gMean, bMean) {
   if (!(rMean > 0 && gMean > 0 && bMean > 0)) return null;
   const X = 0.4124 * rMean + 0.3576 * gMean + 0.1805 * bMean;
@@ -672,10 +637,6 @@ function computeColorTempCct(rMean, gMean, bMean) {
   return Math.round(cct);
 }
 
-// Re-encode demosaiced linear sensor values into the sRGB transfer
-// function (inverse of the srgbToLinear LUT) so the demosaiced frame's
-// face/exposure stats sit on the same scale as every processed-path
-// reading the app has calibrated against.
 function srgbEncode(rgba) {
   const out = new Uint8ClampedArray(rgba.length);
   for (let i = 0; i < rgba.length; i += 4) {
@@ -713,10 +674,6 @@ parentPort.on('message', async (msg) => {
         ? new Uint8Array(bayer.buffer, bayer.byteOffset, bayer.length)
         : new Uint16Array(bayer.buffer, bayer.byteOffset, Math.floor(bayer.length / 2));
       const rawMeans = bayerChannelMeans(view, width, height, pattern, bitDepth);
-      // Demosaiced values are sensor-referred linear light; re-encode to
-      // sRGB so face/exposure stats stay on the same scale as every
-      // processed-path reading (the lux anchors and learned models are
-      // calibrated on sRGB-encoded camera output).
       const rgba = srgbEncode(demosaicRaw(view, width, height, pattern, bitDepth));
       buffer = rgba;
       rawMeta = {
@@ -743,9 +700,6 @@ parentPort.on('message', async (msg) => {
     parentPort.postMessage({ id, result });
   } catch (err) {
     parentPort.postMessage({ id, error: err.message });
-    // A WASM init failure is unrecoverable in-process: every later frame
-    // would fail the same way. Exit so the parent's 'exit' handler respawns
-    // a fresh worker instead of wedging.
     if (err && /OpenCV init timeout/.test(err.message)) {
       process.exit(1);
     }

@@ -1,10 +1,4 @@
-// algorithm.js — math utilities for the learning engine: array stats,
-// matrix algebra, weighted ridge regression, and feature definitions.
-// Extracted from BrightnessManager to keep the ML core independently testable.
-
-// ---------------------------------------------------------------------------
-// Feature registry
-// ---------------------------------------------------------------------------
+// algorithm.js
 
 const FEATURE_DEFINITIONS = {
   webcam:          { accessor: (s) => s?.webcamScore,            type: 'numeric' },
