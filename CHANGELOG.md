@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.9.2] - 2026-09-30
+
+### Fixed
+- **Brightness adjustment could permanently stop after a hysteresis-blocked cycle.** `#cycleInFlight` was only cleared inside `_applyBrightness`, so a cycle where hysteresis suppressed the change left the flag set forever and every subsequent cycle silently no-op'd. The flag now clears in the cycle's `finally` block. (`BrightnessManager.js`)
+
+### Refactor
+- **Windows brightness get/set shared one dispatch table.** `winGet`/`winSet` each re-implemented the same WMI/CIM/DDC probe-and-fail chain; both now iterate a single `fns` table, removing the duplicated backend-ordering logic. (`signals.js`)
+- **macOS backend chain extracted to a data table.** `resolveMacBackend` no longer rebuilds the probe chain on every call; `MAC_BACKENDS` is module-level and the preferred-backend ordering is applied on top. Display-target parsing shared between get/set via `macParseDisplayList`. (`signals.js`)
+- **Linux get/set share resolve-and-dispatch scaffolding.** `withLinuxBackend` wraps backend resolution, success/failure latching, and the missing-backend error so `linuxGet`/`linuxSet` only carry their per-backend command logic. (`signals.js`)
+- **ffmpeg device-input builders merged.** `ffmpegDeviceInput`/`ffmpegDeviceInputTail` were the same three-platform branch differing only in the `-video_size` flag; now one function with a `withSize` parameter. (`webcam.js`)
+
+### Performance
+- **Analysis worker allocates one grayscale Mat per frame instead of two.** Face detection and full-frame stats previously each ran `cvtColor` into their own Mat; both now share a single conversion. (`webcamAnalysis_worker.js`)
+- **Bayer channel means vectorized.** The per-pixel JS loop over the raw mosaic now walks a typed-array view with the row phase hoisted out of the inner loop, and folds g1/g2 through a channel-index lookup instead of string keys. (`webcamAnalysis_worker.js`)
+- **History chart no longer reallocates its static layer canvas on every render.** `chartStaticCanvas` is created once and resized only when the backing-store dimensions actually change. (`app/renderer.js`)
+
 ## [1.9.1] - 2026-09-30
 
 ### Fixed
