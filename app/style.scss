@@ -19,7 +19,7 @@ $font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace
   --color-surface-raised: #ffffff;
   --color-fg: #0f172a;
   --color-fg-muted: #475569;
-  --color-fg-subtle: #94a3b8;
+  --color-fg-subtle: #64748b;
 
   --color-accent: var(--accent-600);
   --color-accent-hover: var(--accent-700);
@@ -33,7 +33,7 @@ $font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace
   --color-input-bg: #ffffff;
   --color-hover-bg: #f1f5f9;
 
-  --color-success: #16a34a;
+  --color-success: #15803d;
   --color-success-soft: #dcfce7;
   --color-warn: #b45309;
   --color-warn-soft: #fef3c7;
@@ -1445,7 +1445,7 @@ select {
     --color-surface-raised: #16233c;
     --color-fg: #e6edf7;
     --color-fg-muted: #a3b3c9;
-    --color-fg-subtle: #5b6b82;
+    --color-fg-subtle: #8b9cb5;
 
     --color-accent: #5b9cf8;
     --color-accent-hover: #7db1fa;
@@ -1459,11 +1459,11 @@ select {
     --color-input-bg: #111c30;
     --color-hover-bg: #1a2942;
 
-    --color-success: #4ade80;
+    --color-success: #86efac;
     --color-success-soft: rgba(74, 222, 128, 0.14);
-    --color-warn: #fbbf24;
+    --color-warn: #fcd34d;
     --color-warn-soft: rgba(251, 191, 36, 0.14);
-    --color-error: #f87171;
+    --color-error: #fca5a5;
     --color-error-soft: rgba(248, 113, 113, 0.14);
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
