@@ -2,7 +2,7 @@
 // To build a distributable, use one of the packaging scripts in package.json,
 // e.g. `npm run dist:win` / `npm run dist:mac` / `npm run dist:linux`.
 
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog, shell, systemPreferences } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog, shell, systemPreferences, powerMonitor } = require('electron');
 const path = require('path');
 const os = require('os');
 const fs = require('fs/promises');
@@ -107,6 +107,16 @@ if (!app.requestSingleInstanceLock()) {
         startUpdateChecks((update) => {
             state.availableUpdate = update;
             sendToMainWindow('update-available', update);
+        });
+        // Sleep/wake invalidates cachedFn caches (power, night light) and any
+        // in-flight captures — first cycle after resume reads fresh state.
+        powerMonitor.on('resume', () => {
+            logger.info('System resumed from sleep; clearing stale caches.');
+            try { require('../signals').clearCaches(); } catch { /* ignore */ }
+            if (brightnessManager) brightnessManager.invalidateCaches();
+        });
+        powerMonitor.on('suspend', () => {
+            logger.info('System suspending; pausing adjustment cycle.');
         });
     });
 }

@@ -743,5 +743,11 @@ parentPort.on('message', async (msg) => {
     parentPort.postMessage({ id, result });
   } catch (err) {
     parentPort.postMessage({ id, error: err.message });
+    // A WASM init failure is unrecoverable in-process: every later frame
+    // would fail the same way. Exit so the parent's 'exit' handler respawns
+    // a fresh worker instead of wedging.
+    if (err && /OpenCV init timeout/.test(err.message)) {
+      process.exit(1);
+    }
   }
 });

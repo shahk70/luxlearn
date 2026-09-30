@@ -896,6 +896,16 @@ class BrightnessManager extends EventEmitter {
     return reuse;
   }
 
+  // Called on system resume: pre-sleep ambient/power readings are stale, so
+  // drop the reuse window to force a fresh cycle.
+  invalidateCaches() {
+    this.#lastAmbientState = null;
+    this.#lastAmbientStateAt = 0;
+    this.#cachedPowerInfo = null;
+    this.#cachedNightLight = null;
+    this.#lastStablePowerInfo = null;
+  }
+
   async #collectAmbientReadings(detectFaces, readSlowSignals) {
     let webcamResult = null;
     try {
@@ -1193,6 +1203,7 @@ class BrightnessManager extends EventEmitter {
       } : null,
     };
   }
+
 
   _buildRelationshipContext(ambientState, statSnapshot) {
     const relFeatures = this.#relationshipFeatures;
@@ -1523,7 +1534,9 @@ class BrightnessManager extends EventEmitter {
   #setInterval(name, callback, delay) {
     const existing = this.#intervals.get(name);
     if (existing) clearInterval(existing);
-    this.#intervals.set(name, setInterval(callback, delay));
+    const id = setInterval(callback, delay);
+    if (id.unref) id.unref();
+    this.#intervals.set(name, id);
   }
 
   _resetAdjustmentInterval() {

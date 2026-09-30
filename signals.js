@@ -171,6 +171,13 @@ async function getNightLightState() {
   return cachedNightLightState();
 }
 
+function clearCaches() {
+  cachedPowerStatus.invalidate();
+  cachedNightLightState.invalidate();
+  resolvedAvailability = undefined;
+  resolvedAvailabilityCheckedAt = 0;
+}
+
 let resolvedAvailability;
 let cachedIioDevicePath;
 
@@ -1115,5 +1122,5 @@ module.exports = {
   getSystemBrightness, setSystemBrightness, getBrightnessBackendName, listDisplays,
   hasAmbientLightSensor, readAmbientLightLux, getPowerStatus, getNightLightState,
   detectDeviceProfile, getCurrentWindow, getActiveWindowInfo, getActiveWindowSafe: getActiveWindowInfo,
-  screenAvgBrightness, unlatchFailedBackends,
+  screenAvgBrightness, unlatchFailedBackends, clearCaches,
 };

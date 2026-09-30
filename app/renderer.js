@@ -368,8 +368,9 @@ window.addEventListener('DOMContentLoaded', () => {
         if (powerRefreshTimer) return;
         refreshPowerRow();
         powerRefreshTimer = setInterval(() => {
-            if (document.getElementById('page-status')?.classList.contains('active')) refreshPowerRow();
+            if (document.getElementById('page-status')?.classList.contains('active') && !document.hidden) refreshPowerRow();
         }, 30000);
+        if (powerRefreshTimer.unref) powerRefreshTimer.unref();
     }
 
     function renderOsSupport(osSupport = {}) {
@@ -1486,13 +1487,14 @@ window.addEventListener('DOMContentLoaded', () => {
         };
         initial.catch(() => scheduleRetry());
         activityPollTimer = setInterval(tick, 10000);
+        if (activityPollTimer.unref) activityPollTimer.unref();
     };
 
     const startHistoryRefresh = () => {
         if (historyRefreshTimer) return;
         drawHistoryChart();
         historyRefreshTimer = setInterval(() => {
-            if (document.getElementById('page-status')?.classList.contains('active')) drawHistoryChart();
+            if (document.getElementById('page-status')?.classList.contains('active') && !document.hidden) drawHistoryChart();
         }, 60000);
     };
     const ensureChartGeometry = () => {

@@ -18,7 +18,7 @@ function cachedFn(fn, ttlMs, opts = {}) {
   let lastWriteAt = 0;
   let inflight = null;
 
-  return function cached() {
+  const cached = function cached() {
     const now = Date.now();
 
     // Fast path: cache hit (skip when caller declared it stale).
@@ -47,6 +47,15 @@ function cachedFn(fn, ttlMs, opts = {}) {
 
     return resultPromise;
   };
+
+  // Drop the cached value so the next call re-runs `fn`. Used on
+  // suspend/resume to avoid returning pre-sleep state.
+  cached.invalidate = () => {
+    value = undefined;
+    lastWriteAt = 0;
+  };
+
+  return cached;
 }
 
 module.exports = { cachedFn };
